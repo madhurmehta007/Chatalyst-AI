@@ -1,0 +1,21 @@
+package com.android.bakchodai.data.repository
+
+import com.android.bakchodai.data.model.Conversation
+import com.android.bakchodai.data.model.Message
+import com.android.bakchodai.data.model.User
+import kotlinx.coroutines.flow.Flow
+
+interface ConversationRepository {
+    fun getConversationsFlow(): Flow<List<Conversation>>
+    fun getUsersFlow(): Flow<List<User>>
+    fun getConversationFlow(id: String): Flow<Conversation?>
+
+    suspend fun getConversations(): List<Conversation>
+    suspend fun getConversation(id: String): Conversation?
+    suspend fun getUsers(): List<User>
+
+    suspend fun addMessage(conversationId: String, message: Message)
+    suspend fun createGroup(name: String, participantIds: List<String>, topic: String): String
+    suspend fun addUser(user: User)
+    suspend fun updateUserName(uid: String, newName: String)
+}

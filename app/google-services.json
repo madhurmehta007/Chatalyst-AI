@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "226759716419",
+    "project_id": "bakchod-ai",
+    "storage_bucket": "bakchod-ai.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:226759716419:android:587bbbf93ee82f89116ef6",
+        "android_client_info": {
+          "package_name": "com.android.bakchodai"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDrui-V2XgjP6gfqgHzKMeVD7j0rV25GnA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
