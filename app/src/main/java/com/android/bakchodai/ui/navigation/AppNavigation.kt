@@ -34,6 +34,7 @@ import com.android.bakchodai.ui.chat.ChatScreen
 import com.android.bakchodai.ui.chat.ChatViewModel
 import com.android.bakchodai.ui.creategroup.CreateGroupScreen
 import com.android.bakchodai.ui.creategroup.CreateGroupViewModel
+import com.android.bakchodai.ui.edit_group.EditGroupScreen
 import com.android.bakchodai.ui.main.MainScreen
 import com.android.bakchodai.ui.main.MainViewModel
 import com.android.bakchodai.ui.newchat.NewChatScreen
@@ -211,12 +212,22 @@ fun AppNavigation() {
                             onDeleteMessage = { messageId ->
                                 chatViewModel.deleteMessage(conversationId, messageId)
                             },
+                            onNavigateToEditGroup = {
+                                navController.navigate("edit_group/$conversationId")
+                            },
                             onDeleteGroup = {
                                 chatViewModel.deleteGroup(conversationId)
                             },
                             onBack = { navController.popBackStack() }
                         )
                     }
+                }
+
+                composable("edit_group/{conversationId}") { backStackEntry ->
+                    // ViewModel is automatically created by Hilt with conversationId
+                    EditGroupScreen(
+                        onBack = { navController.popBackStack() }
+                    )
                 }
             }
         }

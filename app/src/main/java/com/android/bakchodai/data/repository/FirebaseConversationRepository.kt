@@ -265,4 +265,19 @@ class FirebaseConversationRepository : ConversationRepository {
         // 3. Atomically delete all entries
         database.updateChildren(childUpdates).await()
     }
+
+    override suspend fun updateGroupDetails(conversationId: String, newName: String, newTopic: String) {
+        val updates = mapOf(
+            "name" to newName,
+            "topic" to newTopic
+        )
+        try {
+            database.child("conversations/$conversationId").updateChildren(updates).await()
+            Log.d("FirebaseRepo", "Group details updated: $conversationId")
+        } catch (e: Exception) {
+            Log.e("FirebaseRepo", "Failed to update group details for $conversationId", e)
+            // Re-throw or handle as needed
+            throw e
+        }
+    }
 }

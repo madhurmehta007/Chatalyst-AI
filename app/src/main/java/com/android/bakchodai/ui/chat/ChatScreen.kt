@@ -38,7 +38,8 @@ fun ChatScreen(
     isAiTyping: Boolean,
     onSendMessage: (String) -> Unit,
     onEmojiReact: (String, String) -> Unit,
-    onEditMessage: (String, String) -> Unit, // Kept for future use
+    onEditMessage: (String, String) -> Unit,
+    onNavigateToEditGroup: () -> Unit,
     onDeleteMessage: (String) -> Unit,
     onDeleteGroup: () -> Unit,
     onBack: () -> Unit
@@ -83,6 +84,7 @@ fun ChatScreen(
                     isGroupTyping = isGroupTyping,
                     isAiTyping = isAiTyping,
                     onBack = onBack,
+                    onNavigateToEditGroup = onNavigateToEditGroup,
                     onShowDeleteGroupDialog = { showDeleteGroupDialog = true }
                 )
             } else {
@@ -190,6 +192,7 @@ private fun NormalTopBar(
     currentUserId: String?,
     isGroupTyping: Boolean,
     isAiTyping: Boolean,
+    onNavigateToEditGroup: () -> Unit,
     onBack: () -> Unit,
     onShowDeleteGroupDialog: () -> Unit
 ) {
@@ -245,9 +248,9 @@ private fun NormalTopBar(
                     onDismissRequest = { isGroupMenuExpanded = false }
                 ) {
                     DropdownMenuItem(
-                        text = { Text("Edit Group (TODO)") },
+                        text = { Text("Edit Group") },
                         onClick = {
-                            Toast.makeText(context, "Edit feature coming soon!", Toast.LENGTH_SHORT).show()
+                            onNavigateToEditGroup()
                             isGroupMenuExpanded = false
                         }
                     )

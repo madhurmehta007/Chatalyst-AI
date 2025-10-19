@@ -273,6 +273,20 @@ class OfflineFirstConversationRepository @Inject constructor(
         }
     }
 
+    override suspend fun updateGroupDetails(conversationId: String, newName: String, newTopic: String) {
+        val updates = mapOf(
+            "name" to newName,
+            "topic" to newTopic
+        )
+        try {
+            database.child("conversations/$conversationId").updateChildren(updates).await()
+            Log.d("Repo", "Group details updated in Firebase: $conversationId")
+            // The Firebase listener in getConversationFlow will update Room automatically
+        } catch (e: Exception) {
+            Log.e("Repo", "Failed to update group details in Firebase", e)
+        }
+    }
+
     // --- Mapper functions ---
     private fun User.toEntity() = UserEntity(uid, name, avatarUrl, personality)
     private fun UserEntity.toModel() = User(uid, name, avatarUrl, personality)
