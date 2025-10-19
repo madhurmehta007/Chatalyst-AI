@@ -15,6 +15,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -31,7 +33,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
@@ -87,13 +91,15 @@ fun MessageBubble(
         // *** 1. Profile Icon (for incoming) ***
         if (!isFromMe) {
             AsyncImage(
-                model = sender.getAvatarUrl(),
+                model = sender.avatarUrl,
                 contentDescription = "Sender Avatar",
                 modifier = Modifier
                     .size(32.dp)
                     .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surfaceVariant)
-                    .padding(bottom = 4.dp) // Align with bubble bottom
+                    .background(MaterialTheme.colorScheme.surfaceVariant), // Background for placeholder/error
+                contentScale = ContentScale.Crop, // Crop image to fit circle
+                placeholder = rememberVectorPainter(Icons.Filled.Person), // Show person icon while loading
+                error = rememberVectorPainter(Icons.Filled.Person) // Show person icon on error
             )
             Spacer(modifier = Modifier.width(8.dp))
         }

@@ -5,6 +5,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Group
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -12,6 +15,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -28,7 +33,8 @@ fun ConversationListItem(
     onConversationClick: (String) -> Unit
 ) {
     val lastMessage = conversation.messages.values.maxByOrNull { it.timestamp }
-
+    val placeholderIcon = if (conversation.group) Icons.Filled.Group else Icons.Filled.Person
+    val avatarUrl = "https://ui-avatars.com/api/?name=${conversation.name.replace(" ", "+")}&background=random"
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -38,12 +44,15 @@ fun ConversationListItem(
     ) {
         // Profile Picture
         AsyncImage(
-            model = "https://via.placeholder.com/100", // Placeholder
+            model = avatarUrl, // Placeholder URL for now
             contentDescription = "Profile Picture",
             modifier = Modifier
                 .size(50.dp)
                 .clip(CircleShape)
-                .background(Color.Gray)
+                .background(MaterialTheme.colorScheme.surfaceVariant),
+            contentScale = ContentScale.Crop,
+            placeholder = rememberVectorPainter(placeholderIcon), // Use icon based on chat type
+            error = rememberVectorPainter(placeholderIcon) // Use icon based on chat type
         )
 
         Spacer(Modifier.width(16.dp))

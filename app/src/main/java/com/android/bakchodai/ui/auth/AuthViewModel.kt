@@ -136,7 +136,7 @@ class AuthViewModel(private val repository: ConversationRepository) : ViewModel(
                     val newUser = User(
                         uid = firebaseUser.uid,
                         name = name,
-                        profilePictureUrl = avatarUrl // Save the URL
+                        avatarUrl = avatarUrl // Save the URL
                     )
                     repository.addUser(newUser) // Suspend function called safely in coroutine.
 

@@ -1,14 +1,19 @@
 package com.android.bakchodai.ui.profile
 
 import android.widget.Toast
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -26,7 +31,7 @@ fun ProfileScreen(
 ) {
     var name by remember { mutableStateOf("") }
     val avatarUrl by remember(user) {
-        mutableStateOf(user?.getAvatarUrl() ?: "https://ui-avatars.com/api/?name=?")
+        mutableStateOf(user?.avatarUrl ?: "https://ui-avatars.com/api/?name=?")
     }
 
     val context = LocalContext.current
@@ -57,8 +62,11 @@ fun ProfileScreen(
                 .size(120.dp)
                 .clip(CircleShape)
                 .border(2.dp, MaterialTheme.colorScheme.primary, CircleShape)
+                .background(MaterialTheme.colorScheme.surfaceVariant), // Background for placeholder/error
+            contentScale = ContentScale.Crop,
+            placeholder = rememberVectorPainter(Icons.Filled.Person), // Placeholder
+            error = rememberVectorPainter(Icons.Filled.Person) // Error fallback
         )
-
         Spacer(modifier = Modifier.height(16.dp))
 
         // User's name (non-editable, from auth)

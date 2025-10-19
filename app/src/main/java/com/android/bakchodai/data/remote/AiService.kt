@@ -70,7 +70,7 @@ IMPORTANT: Do NOT start your response with your own name (e.g., "$name:"). Just 
 
         // Use a model instance specifically configured with the system prompt
         val modelWithSystem = GenerativeModel(
-            modelName = "gemini-1.5-flash",
+            modelName = "gemini-2.5-flash",
             apiKey = BuildConfig.GEMINI_API_KEY,
             systemInstruction = content { text(systemPrompt) },
             requestOptions = RequestOptions(timeout = 60_000) // Timeout for group response

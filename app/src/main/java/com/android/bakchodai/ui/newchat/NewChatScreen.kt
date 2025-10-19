@@ -8,11 +8,14 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -77,12 +80,15 @@ private fun UserListItem(
         verticalAlignment = Alignment.CenterVertically
     ) {
         AsyncImage(
-            model = user.getAvatarUrl(), // Use the new function
+            model = user.avatarUrl,
             contentDescription = "Profile Picture",
             modifier = Modifier
                 .size(50.dp)
                 .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.surfaceVariant)
+                .background(MaterialTheme.colorScheme.surfaceVariant),
+            contentScale = ContentScale.Crop,
+            placeholder = rememberVectorPainter(Icons.Filled.Person), // Placeholder
+            error = rememberVectorPainter(Icons.Filled.Person) // Error fallback
         )
 
         Spacer(Modifier.width(16.dp))

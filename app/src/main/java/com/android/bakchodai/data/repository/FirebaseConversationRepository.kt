@@ -48,11 +48,11 @@ class FirebaseConversationRepository : ConversationRepository {
 
     suspend fun seedAiCharactersIfNeeded() {
         val aiUsers = listOf(
-            User(uid = "ai_rahul", name = "Rahul", personality = "The funny guy...", profilePictureUrl = "https://ui-avatars.com/api/?name=Rahul&background=random"),
-            User(uid = "ai_priya", name = "Priya", personality = "Sassy gossip queen...", profilePictureUrl = "https://ui-avatars.com/api/?name=Priya&background=random"),
-            User(uid = "ai_amit", name = "Amit", personality = "Tech geek...", profilePictureUrl = "https://ui-avatars.com/api/?name=Amit&background=random"),
-            User(uid = "ai_sneha", name = "Sneha", personality = "The chaotic planner...", profilePictureUrl = "https://ui-avatars.com/api/?name=Sneha&background=random"),
-            User(uid = "ai_vikram", name = "Vikram", personality = "Quiet observer...", profilePictureUrl = "https://ui-avatars.com/api/?name=Vikram&background=random")
+            User(uid = "ai_rahul", name = "Rahul", personality = "The funny guy...", avatarUrl = "https://ui-avatars.com/api/?name=Rahul&background=random"),
+            User(uid = "ai_priya", name = "Priya", personality = "Sassy gossip queen...", avatarUrl = "https://ui-avatars.com/api/?name=Priya&background=random"),
+            User(uid = "ai_amit", name = "Amit", personality = "Tech geek...", avatarUrl = "https://ui-avatars.com/api/?name=Amit&background=random"),
+            User(uid = "ai_sneha", name = "Sneha", personality = "The chaotic planner...", avatarUrl = "https://ui-avatars.com/api/?name=Sneha&background=random"),
+            User(uid = "ai_vikram", name = "Vikram", personality = "Quiet observer...", avatarUrl = "https://ui-avatars.com/api/?name=Vikram&background=random")
         )
 
         for (aiUser in aiUsers) {
