@@ -1,135 +1,122 @@
-Bakchod AI: A WhatsApp Clone with Autonomous AI Group Chats
-Ever wondered what your friends chat about when you're not there? Bakchod AI simulates just that.
+# 🤖 Bakchod AI: A WhatsApp Clone with Autonomous AI Group Chats
 
-It's a WhatsApp-style chat application built with Jetpack Compose and Firebase, where you can not only chat 1-on-1 with AI characters but also create group chats with them. The magic happens in the groups: the AI characters have their own personalities, backgrounds, and speaking styles. They will talk to each other autonomously, creating a lively, chaotic, and hilarious group dynamic 24/7.
+> _Ever wondered what your friends chat about when you're not there?_  
+> **Bakchod AI** simulates just that.
 
-[Insert a GIF or screenshot here showing a lively group chat in action]
+A **WhatsApp-style chat application** built with **Jetpack Compose** and **Firebase**, where you can not only chat 1-on-1 with AI characters but also create **autonomous group chats** between them.  
+The AIs have distinct **personalities, backstories, and speaking styles**, leading to **chaotic, hilarious, and lifelike** conversations 24/7.  
 
-Core Features
-WhatsApp-Style UI: A clean, responsive, and familiar UI built entirely with Jetpack Compose, mimicking the look and feel of WhatsApp.
+---
 
-1-on-1 AI Chat: Start private conversations with a variety of pre-configured AI personalities (like "Rahul, the meme-lord" or "Priya, the gossip queen").
+![App Screenshot or GIF Placeholder](https://github.com/your-username/bakchod-ai/assets/your-image-id)  
+_(Insert a lively group chat screenshot or GIF here)_
 
-Autonomous Group Chats: The core feature! Create a group, add your favorite AI characters, give the group a topic (like "Planning a Goa Trip"), and watch them come to life. They will chat, banter, and roast each other based on their unique personalities.
+---
 
-Personality-Driven AI: The AIs aren't generic. Each has a unique name, personality, background story, interests, and speaking style, which are all fed into the Gemini prompt to generate realistic and in-character responses.
+## 🌟 Core Features
 
-Custom AI Characters: Don't like the pre-seeded characters? Use the "Add AI Character" feature to create your own from scratch, defining their entire persona.
+### 💬 WhatsApp-Style UI
+- Clean, responsive, and familiar interface built entirely with **Jetpack Compose**.  
+- Mimics the look and feel of WhatsApp for instant user familiarity.
 
-Dynamic Avatars: Every user (both human and AI) gets a unique, procedurally generated "Avataaar" from DiceBear. No more boring default initials!
+### 👤 1-on-1 AI Chat
+- Start private chats with pre-built AI personalities like:  
+  - *Rahul — The Meme Lord*  
+  - *Priya — The Gossip Queen*
 
-Rich Chat Features:
+### 🤯 Autonomous Group Chats (The Core Magic!)
+- Create a group, add AI characters, set a topic (e.g., “Planning a Goa Trip”), and watch them banter autonomously.
+- AI participants chat with each other based on their **defined personas** and group context.
 
-Typing Indicators: See when an AI is 'typing' a response in 1-on-1 chats.
+### 🧠 Personality-Driven AI
+- Each AI has:
+  - A name
+  - Background story
+  - Personality traits
+  - Speaking style  
+- These attributes are used in prompts to **generate realistic, in-character responses** using **Google Gemini**.
 
-Online/Member Status: 1-on-1 chats show a simple 'Online' status, while groups show the member count.
+### 🧑‍🎨 Custom AI Characters
+- Don’t like the defaults?  
+  Create your own AI character from scratch — define their **persona**, **interests**, and **tone**.
 
-Message Selection & Delete: Long-press a message to select it and bring up a contextual menu to delete it.
+### 🧩 Dynamic Avatars
+- Every user (human or AI) gets a **unique DiceBear Avataaar** — no boring initials!
 
-Group Management: Edit a group's name and topic, or delete the group entirely.
+---
 
-Modern Android Stack:
+## 💬 Rich Chat Features
 
-Light/Dark Mode: Features a manual toggle in the Profile screen that saves your preference using DataStore.
+- **Typing Indicators:** See when an AI is “typing” a response.  
+- **Online/Member Status:**  
+  - 1-on-1: “Online”  
+  - Groups: “x Members Online”  
+- **Message Actions:** Long-press to select or delete messages.  
+- **Group Management:** Edit group name/topic or delete entirely.  
 
-Offline-First Caching: Built with an OfflineFirstConversationRepository, the app uses a Room database to cache all users and conversations for a fast, responsive, and offline-capable experience.
+---
 
-Real-time Sync: Uses Firebase Realtime Database listeners to sync data to the local Room database, which then updates the UI via Flows.
+## 🧱 Modern Android Stack
 
-The Magic: How Autonomous Groups Work
-The real star of the show is the GroupChatService.kt. This is what makes the group chats feel alive.
+| Layer | Technology |
+|-------|-------------|
+| **UI** | Jetpack Compose |
+| **Architecture** | MVVM (Model–View–ViewModel) |
+| **Remote DB** | Firebase Realtime Database |
+| **Local DB** | Room (Offline-first caching) |
+| **AI Engine** | Google Gemini (via `com.google.ai.client.generativeai`) |
+| **Authentication** | Firebase Auth |
+| **Dependency Injection** | Hilt |
+| **Async** | Kotlin Coroutines & Flows |
+| **Navigation** | Jetpack Navigation for Compose |
+| **Images** | Coil |
+| **Avatars** | DiceBear API |
+| **Data Persistence (Theme)** | Jetpack DataStore |
 
-Service Start: When a user logs in, the BakchodaiApplication class starts a custom GroupChatService in a background coroutine scope.
+---
 
-Polling Loop: Every 20 seconds, the service fetches all group conversations from the local Room database.
+## ⚙️ The Magic: How Autonomous Groups Work
 
-Decision Logic: For each group, it decides if an AI should speak. An AI will speak if:
+The real star: **`GroupChatService.kt`**
 
-A human user just sent a message (high priority).
+### 🧩 Lifecycle
+1. **Service Start:**  
+   When the app launches, `BakchodaiApplication` starts `GroupChatService` in a background coroutine.
 
-The chat has been quiet for a short time (a random chance to speak, making the chat feel self-starting).
+2. **Polling Loop:**  
+   Every 20 seconds, the service checks all active groups in Room DB.
 
-The service also checks for inactivity and will stop posting in "dead" chats to save on API calls.
+3. **Decision Logic:**  
+   An AI decides to respond if:
+   - A human just messaged (high priority)
+   - The chat’s been quiet for a while (random chance)
+   - The chat isn’t inactive (to save API calls)
 
-Persona-Driven Prompt: If the service decides "yes," it:
+4. **Prompt Construction:**  
+   The service builds a persona-specific prompt:
+   - Fetch AI’s persona, speaking style, and chat members.
+   - Example instruction:  
+     > “You MUST act AS Rahul. DO NOT mention you are an AI.”
 
-Picks an AI participant (favoring one that didn't speak last).
+5. **Response Generation:**  
+   - Gemini generates a reply.
+   - The message is posted to Firebase as if the AI sent it.
 
-Fetches the AI's detailed persona (personality, background, speaking style).
+🎭 **Result:**  
+A self-sustaining, chaotic, and hilarious group chat — that feels alive.
 
-Fetches all users in the chat to get their names.
+---
 
-Constructs a detailed system prompt for the Gemini API, telling it to act as that character (e.g., "You MUST act AS Rahul. DO NOT mention you are an AI...").
+## 🧰 Tech Stack Overview
 
-Generation & Posting: The Gemini API generates a response based on the chat history and the AI's persona. This response is then posted back to the Firebase Realtime Database as a new message from that AI.
+- **UI:** Jetpack Compose  
+- **Architecture:** MVVM  
+- **Database:** Room + Firebase Realtime DB  
+- **AI:** Google Gemini  
+- **Dependency Injection:** Hilt  
+- **Offline Caching:** Room + Flow  
+- **Image Loading:** Coil  
+- **Avatars:** DiceBear Avataars  
+- **DataStore:** For theme persistence  
 
-This loop creates a self-sustaining, chaotic, and hilarious group chat that truly feels like a real, bakchod-filled friends group.
 
-Tech Stack & Architecture
-UI: 100% Jetpack Compose
-
-Architecture: MVVM (Model-View-ViewModel)
-
-Database (Remote): Firebase Realtime Database
-
-Database (Local): Room (for offline-first caching)
-
-AI: Google Gemini (via com.google.ai.client.generativeai)
-
-Authentication: Firebase Authentication
-
-Dependency Injection: Hilt
-
-Asynchronicity: Kotlin Coroutines & Flows
-
-Image Loading: Coil
-
-Navigation: Jetpack Navigation for Compose
-
-Avatars: DiceBear (Avataaars) API
-
-Data Persistence (Theme): Jetpack DataStore
-
-🚀 How to Run
-Clone the Repository
-
-Bash
-
-git clone https://github.com/your-username/bakchod-ai.git
-cd bakchod-ai
-Firebase Setup
-
-Go to the Firebase Console and create a new project.
-
-Enable Authentication (Email & Password method).
-
-Enable Realtime Database (start in test mode for easy setup).
-
-In your Firebase project settings, add an Android app. Use com.android.bakchodai as the package name.
-
-Download the google-services.json file and place it in the bakchodai/ (app-level) directory.
-
-Gemini API Key
-
-Go to the Google AI Studio and create an API key.
-
-In the root of your Android project, open (or create) the local.properties file.
-
-Add your API key to local.properties. (The build.gradle file is already configured to read this key, but you must add it to your local file):
-
-Properties
-
-GEMINI_API_KEY="YOUR_API_KEY_HERE"
-Build & Run
-
-Open the project in Android Studio.
-
-Let Gradle sync.
-
-Build and run on an emulator or a physical device.
-
-Sign up for a new account.
-
-The pre-seeded AI characters (Rahul, Priya, etc.) will be added to your database automatically on first launch.
-
-Start a new chat or create a new group and enjoy the chaos!
