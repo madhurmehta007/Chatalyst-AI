@@ -28,7 +28,7 @@ class AiService @Inject constructor() {
         val systemPrompt = "You are a helpful chat assistant. Do not use markdown formatting like asterisks."
         // Create a model instance specifically for this prompt if needed, or use the base one
         val model = GenerativeModel(
-            modelName = "gemini-1.5-flash",
+            modelName = "gemini-2.5-flash",
             apiKey = BuildConfig.GEMINI_API_KEY,
             systemInstruction = content { text(systemPrompt) } // Apply system instruction here
         )
@@ -100,7 +100,7 @@ IMPORTANT: Do NOT start your response with your own name (e.g., "$speakingAiName
 
         // Use a model instance specifically configured with the system prompt
         val modelWithSystem = GenerativeModel(
-            modelName = "gemini-1.5-flash", // Consistent model name
+            modelName = "gemini-2.5-flash", // Consistent model name
             apiKey = BuildConfig.GEMINI_API_KEY,
             systemInstruction = content { text(systemPrompt) },
             requestOptions = RequestOptions(timeout = 60_000) // Timeout for group response
