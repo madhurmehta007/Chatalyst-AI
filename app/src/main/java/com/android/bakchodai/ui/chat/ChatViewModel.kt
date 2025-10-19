@@ -11,6 +11,7 @@ import com.google.firebase.database.ktx.database
 import com.google.firebase.ktx.Firebase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
@@ -24,6 +25,9 @@ class ChatViewModel(
     private val _users = MutableStateFlow<List<User>>(emptyList())
     val users: StateFlow<List<User>> = _users
 
+    private val _isAiTyping = MutableStateFlow(false)
+    val isAiTyping: StateFlow<Boolean> = _isAiTyping.asStateFlow()
+
     init {
         viewModelScope.launch {
             repository.getUsersFlow().collectLatest { userList ->
@@ -35,6 +39,11 @@ class ChatViewModel(
     fun loadConversation(conversationId: String) {
         viewModelScope.launch {
             repository.getConversationFlow(conversationId).collectLatest { conv ->
+                // Check if the latest message is from a human, if so, AI is done typing
+                val lastMessage = conv?.messages?.values?.maxByOrNull { it.timestamp }
+                if (lastMessage != null && !lastMessage.senderId.startsWith("ai_")) {
+                    _isAiTyping.value = false
+                }
                 _conversation.value = conv
             }
         }
@@ -48,6 +57,11 @@ class ChatViewModel(
             timestamp = System.currentTimeMillis()
         )
         viewModelScope.launch {
+            // Check if this is a 1-to-1 AI chat and set typing status
+            val convo = _conversation.value
+            if (convo != null && !convo.group && convo.participants.keys.any { it.startsWith("ai_") }) {
+                _isAiTyping.value = true
+            }
             repository.addMessage(conversationId, message)
         }
     }

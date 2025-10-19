@@ -1,14 +1,21 @@
 package com.android.bakchodai.ui.creategroup
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
@@ -28,7 +35,9 @@ import com.android.bakchodai.data.model.User
 @Composable
 fun CreateGroupScreen(
     users: List<User>,
-    onCreateGroup: (String, List<String>, String) -> Unit
+    isLoading: Boolean,
+    onCreateGroup: (String, List<String>, String) -> Unit,
+    onBack: () -> Unit
 ) {
     var groupName by remember { mutableStateOf("") }
     var topic by remember { mutableStateOf("") }
@@ -36,10 +45,17 @@ fun CreateGroupScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(title = { Text("Create Group") })
+            TopAppBar(
+                title = { Text("Create Group") },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                    }
+                }
+            )
         }
-    ) {
-        Column(modifier = Modifier.padding(it)) {
+    ) { paddingValues ->
+        Column(modifier = Modifier.padding(paddingValues)) {
             TextField(
                 value = groupName,
                 onValueChange = { groupName = it },
@@ -56,32 +72,45 @@ fun CreateGroupScreen(
                     .fillMaxWidth()
                     .padding(16.dp)
             )
-            LazyColumn {
-                items(users) { user ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Checkbox(
-                            checked = user.uid in selectedUsers,
-                            onCheckedChange = { isChecked ->
-                                if (isChecked) {
-                                    selectedUsers.add(user.uid)
-                                } else {
-                                    selectedUsers.remove(user.uid)
+            if (isLoading) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
+                }
+            } else {
+                LazyColumn(modifier = Modifier.weight(1f)) {
+                    items(users) { user ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Checkbox(
+                                checked = user.uid in selectedUsers,
+                                onCheckedChange = { isChecked ->
+                                    if (isChecked) {
+                                        selectedUsers.add(user.uid)
+                                    } else {
+                                        selectedUsers.remove(user.uid)
+                                    }
                                 }
-                            }
-                        )
-                        Text(user.name)
+                            )
+                            Text(user.name)
+                        }
                     }
                 }
             }
             Button(
                 onClick = { onCreateGroup(groupName, selectedUsers.toList(), topic) },
-                enabled = selectedUsers.isNotEmpty(),
-                modifier = Modifier.align(Alignment.CenterHorizontally)
+                enabled = selectedUsers.isNotEmpty() && !isLoading,
+                modifier = Modifier
+                    .align(Alignment.CenterHorizontally)
+                    .padding(16.dp)
             ) {
                 Text("Create Group")
             }

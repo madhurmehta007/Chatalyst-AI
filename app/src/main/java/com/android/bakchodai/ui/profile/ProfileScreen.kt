@@ -25,7 +25,8 @@ import com.android.bakchodai.data.model.User
 fun ProfileScreen(
     user: User?,
     onSaveClick: (String) -> Unit,
-    onLogoutClick: () -> Unit
+    onLogoutClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     var name by remember { mutableStateOf("") }
 
@@ -36,7 +37,7 @@ fun ProfileScreen(
     }
 
     Column(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxSize()
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,

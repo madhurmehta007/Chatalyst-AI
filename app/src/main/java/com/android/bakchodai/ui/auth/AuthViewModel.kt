@@ -49,6 +49,10 @@ class AuthViewModel(private val repository: ConversationRepository) : ViewModel(
     private val _user = MutableStateFlow<FirebaseUser?>(auth.currentUser)
     val user: StateFlow<FirebaseUser?> = _user.asStateFlow()
 
+    // StateFlow for loading state during login/signup
+    private val _isLoading = MutableStateFlow(false)
+    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+
     // Flag to prevent the AuthStateListener from causing a race condition during login/signup.
     private var isProcessingAuthAction = false
 
@@ -80,6 +84,7 @@ class AuthViewModel(private val repository: ConversationRepository) : ViewModel(
     fun login(email: String, password: String) {
         viewModelScope.launch {
             isProcessingAuthAction = true
+            _isLoading.value = true
             try {
                 // Await the completion of the sign-in task.
                 val result = auth.signInWithEmailAndPassword(email, password).await()
@@ -94,6 +99,7 @@ class AuthViewModel(private val repository: ConversationRepository) : ViewModel(
                 // Log.e("AuthViewModel", "Login failed", e)
                 _authState.value = AuthState.LOGGED_OUT
             } finally {
+                _isLoading.value = false
                 isProcessingAuthAction = false
             }
         }
@@ -109,6 +115,7 @@ class AuthViewModel(private val repository: ConversationRepository) : ViewModel(
     fun signUp(name: String, email: String, password: String) {
         viewModelScope.launch {
             isProcessingAuthAction = true
+            _isLoading.value = true
             try {
                 // Await the creation of the user in Firebase Auth.
                 val result = auth.createUserWithEmailAndPassword(email, password).await()
@@ -136,6 +143,7 @@ class AuthViewModel(private val repository: ConversationRepository) : ViewModel(
                 // Log.e("AuthViewModel", "Sign-up failed", e)
                 _authState.value = AuthState.LOGGED_OUT
             } finally {
+                _isLoading.value = false
                 isProcessingAuthAction = false
             }
         }

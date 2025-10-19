@@ -74,24 +74,35 @@ class FirebaseConversationRepository : ConversationRepository {
     }
 
     override suspend fun addMessage(conversationId: String, message: Message) {
+        // 1. Write the new message to the database
         val messageId = database.child("conversations/$conversationId/messages").push().key!!
         database.child("conversations/$conversationId/messages/$messageId").setValue(message.copy(id = messageId)).await()
-        generateAndAddAiResponse(conversationId, message.senderId)
+
+        // 2. Check if this is a 1-to-1 chat
+        val conversation = getConversation(conversationId)
+
+        // 3. *** LOOP FIX ***
+        //    ONLY generate a response if the message is from a HUMAN and it's NOT a group chat.
+        //    Group chats are handled by GroupChatService.
+        if (conversation != null && !message.senderId.startsWith("ai_") && !conversation.group) {
+            generateAndAddAiResponse(conversationId, message.senderId)
+        }
     }
 
+    // This function is now ONLY for 1-to-1 AI responses
     private suspend fun generateAndAddAiResponse(conversationId: String, lastSenderId: String) {
         withContext(Dispatchers.IO) {
             try {
                 val conversation = getConversation(conversationId) ?: return@withContext
                 val aiParticipantIds = conversation.participants.keys.filter { it.startsWith("ai_") }
+                val history = conversation.messages.values.toList()
 
                 if (aiParticipantIds.isNotEmpty()) {
-                    val speakingAi = aiParticipantIds.random()
-                    val users = getUsers()
-                    val aiUser = users.find { it.uid == speakingAi }
-                    val personality = aiUser?.personality ?: ""
-                    val history = conversation.messages.values.toList()
-                    val response = aiService.generateGroupResponse(history, speakingAi, conversation.topic, personality)
+                    val speakingAi = aiParticipantIds.first() // In 1-to-1, there's only one
+
+                    // Use the simple getResponse for 1-to-1 chats
+                    val response = aiService.getResponse(history)
+
                     val newMessage = Message(
                         id = "",
                         senderId = speakingAi,
@@ -100,13 +111,18 @@ class FirebaseConversationRepository : ConversationRepository {
                         type = MessageType.TEXT,
                         status = MessageStatus.SENT
                     )
-                    addMessage(conversationId, newMessage)
+
+                    // *** CRITICAL LOOP FIX ***
+                    // Write directly to DB instead of calling addMessage() again.
+                    val newMsgId = database.child("conversations/$conversationId/messages").push().key!!
+                    database.child("conversations/$conversationId/messages/$newMsgId").setValue(newMessage.copy(id = newMsgId)).await()
                 }
             } catch (e: Exception) {
                 Log.e("FirebaseRepo", "Error generating AI response", e)
             }
         }
     }
+
 
     override suspend fun getConversation(id: String): Conversation? {
         val data = database.child("conversations").child(id).get().await()
@@ -183,9 +199,11 @@ class FirebaseConversationRepository : ConversationRepository {
         }
 
         database.updateChildren(childUpdates).await()
-        if (isGroup && topic.isNotBlank()) {
-            generateAndAddAiResponse(conversationId, "")
-        }
+
+        // Don't auto-message on group creation, let GroupChatService handle it.
+        // if (isGroup && topic.isNotBlank()) {
+        //     generateAndAddAiResponse(conversationId, "")
+        // }
         return conversationId
     }
 

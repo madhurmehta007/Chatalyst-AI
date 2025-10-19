@@ -27,6 +27,9 @@ class MainViewModel(private val repository: ConversationRepository) : ViewModel(
     private val _users = MutableStateFlow<List<User>>(emptyList())
     val users: StateFlow<List<User>> = _users.asStateFlow()
 
+    private val _isLoading = MutableStateFlow(true)
+    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+
     private val auth: FirebaseAuth = Firebase.auth
 
     init {
@@ -40,6 +43,7 @@ class MainViewModel(private val repository: ConversationRepository) : ViewModel(
 
         viewModelScope.launch {
             userIdFlow.flatMapLatest { userId ->
+                _isLoading.value = true
                 if (userId == null) {
                     flowOf(emptyList())
                 } else {
@@ -47,6 +51,7 @@ class MainViewModel(private val repository: ConversationRepository) : ViewModel(
                 }
             }.collectLatest { convos ->
                 _conversations.value = convos
+                _isLoading.value = false
             }
         }
 

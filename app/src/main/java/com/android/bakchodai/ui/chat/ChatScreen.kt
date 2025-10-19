@@ -1,5 +1,6 @@
 package com.android.bakchodai.ui.chat
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -9,13 +10,19 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -27,6 +34,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.android.bakchodai.data.model.Conversation
 import com.android.bakchodai.data.model.User
+import com.android.bakchodai.ui.theme.WhatsAppChatBackground
+import com.android.bakchodai.ui.theme.WhatsAppDarkChatBackground
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.ktx.Firebase
 import kotlinx.coroutines.delay
@@ -36,19 +45,26 @@ import kotlinx.coroutines.delay
 fun ChatScreen(
     conversation: Conversation,
     users: List<User>,
+    isAiTyping: Boolean, // Collect this from the ViewModel
     onSendMessage: (String) -> Unit,
-    onEmojiReact: (String, String) -> Unit
+    onEmojiReact: (String, String) -> Unit,
+    onBack: () -> Unit
 ) {
     val usersById = users.associateBy { it.uid }
     val currentUserId = Firebase.auth.currentUser?.uid
-    var isTyping by remember { mutableStateOf(false) }
+    val listState = rememberLazyListState()
 
-    // Simulate typing indicator for AI users
+    // This is for the group "typing..." simulation
+    var isGroupTyping by remember { mutableStateOf(false) }
     LaunchedEffect(conversation.messages) {
         if (conversation.group && conversation.participants.keys.any { it.startsWith("ai_") }) {
-            isTyping = true
+            isGroupTyping = true
             delay(2000) // Simulate typing for 2 seconds
-            isTyping = false
+            isGroupTyping = false
+        }
+        // Scroll to bottom when a new message arrives
+        if (conversation.messages.isNotEmpty()) {
+            listState.animateScrollToItem(0)
         }
     }
 
@@ -58,26 +74,46 @@ fun ChatScreen(
                 title = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(conversation.name)
-                        if (conversation.group) {
-                            Spacer(Modifier.width(8.dp))
-                            Text(
-                                text = if (isTyping) "Typing..." else "Online",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = if (isTyping) Color.Gray else Color.Green
-                            )
+                        Spacer(Modifier.width(8.dp))
+
+                        // Use the correct typing indicator
+                        val typingText = if (conversation.group) {
+                            if (isGroupTyping) "Typing..." else "Online"
+                        } else {
+                            if (isAiTyping) "Typing..." else "Online"
                         }
+
+                        val typingColor = if (isGroupTyping || isAiTyping) Color.Gray else Color.Green
+
+                        Text(
+                            text = typingText,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = typingColor
+                        )
+                    }
+                },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
                     }
                 }
             )
         },
         modifier = Modifier.fillMaxSize()
     ) { paddingValues ->
+        val chatBgColor = if (androidx.compose.foundation.isSystemInDarkTheme())
+            WhatsAppDarkChatBackground
+        else
+            WhatsAppChatBackground
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
+                .background(chatBgColor)
         ) {
             LazyColumn(
+                state = listState,
                 modifier = Modifier.weight(1f),
                 reverseLayout = true,
                 contentPadding = PaddingValues(vertical = 8.dp)
@@ -92,16 +128,6 @@ fun ChatScreen(
                         isGroup = conversation.group,
                         onEmojiReact = { emoji -> onEmojiReact(message.id, emoji) }
                     )
-                }
-                if (isTyping && conversation.group) {
-                    item {
-                        Text(
-                            text = "Someone is typing...",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = Color.Gray,
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
-                        )
-                    }
                 }
             }
             MessageInput(onSendMessage = onSendMessage)

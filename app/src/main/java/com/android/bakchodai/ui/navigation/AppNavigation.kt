@@ -38,9 +38,10 @@ fun AppNavigation() {
     val conversationRepository = remember { FirebaseConversationRepository() }
     val authViewModel: AuthViewModel = viewModel(factory = AuthViewModelFactory(conversationRepository))
     val authState by authViewModel.authState.collectAsState()
+    val authIsLoading by authViewModel.isLoading.collectAsState()
 
     when (authState) {
-        AuthState.LOGGED_OUT -> AuthScreen(authViewModel)
+        AuthState.LOGGED_OUT -> AuthScreen(authViewModel, authIsLoading)
         AuthState.INITIALIZING -> {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator()
@@ -72,11 +73,17 @@ fun AppNavigation() {
                 composable("new_chat") {
                     val newChatViewModel: NewChatViewModel = viewModel(factory = newChatViewModelFactory)
                     val users by newChatViewModel.users.collectAsState()
+                    val isLoading by newChatViewModel.isLoading.collectAsState()
                     val conversationId by newChatViewModel.navigateToConversation.collectAsState()
 
-                    NewChatScreen(users = users) { user ->
-                        newChatViewModel.findOrCreateConversation(user)
-                    }
+                    NewChatScreen(
+                        users = users,
+                        isLoading = isLoading,
+                        onUserClick = { user ->
+                            newChatViewModel.findOrCreateConversation(user)
+                        },
+                        onBack = { navController.popBackStack() }
+                    )
 
                     LaunchedEffect(conversationId) {
                         conversationId?.let {
@@ -89,11 +96,17 @@ fun AppNavigation() {
                 composable("create_group") {
                     val createGroupViewModel: CreateGroupViewModel = viewModel(factory = createGroupViewModelFactory)
                     val users by createGroupViewModel.users.collectAsState()
+                    val isLoading by createGroupViewModel.isLoading.collectAsState()
                     val groupCreated by createGroupViewModel.groupCreated.collectAsState()
 
-                    CreateGroupScreen(users = users) { name, participantIds, topic ->
-                        createGroupViewModel.createGroup(name, participantIds, topic)
-                    }
+                    CreateGroupScreen(
+                        users = users,
+                        isLoading = isLoading,
+                        onCreateGroup = { name, participantIds, topic ->
+                            createGroupViewModel.createGroup(name, participantIds, topic)
+                        },
+                        onBack = { navController.popBackStack() }
+                    )
 
                     LaunchedEffect(groupCreated) {
                         groupCreated?.let {
@@ -113,17 +126,24 @@ fun AppNavigation() {
 
                     val conversation by chatViewModel.conversation.collectAsState()
                     val users by chatViewModel.users.collectAsState()
+                    val isAiTyping by chatViewModel.isAiTyping.collectAsState() // Get typing state
 
-                    conversation?.let { conv ->
+                    if (conversation == null) {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator()
+                        }
+                    } else {
                         ChatScreen(
-                            conversation = conv,
+                            conversation = conversation!!,
                             users = users,
+                            isAiTyping = isAiTyping, // Pass state to the screen
                             onSendMessage = { message ->
                                 chatViewModel.sendMessage(conversationId, message)
                             },
                             onEmojiReact = { messageId, emoji ->
                                 chatViewModel.addEmojiReaction(conversationId, messageId, emoji)
-                            }
+                            },
+                            onBack = { navController.popBackStack() }
                         )
                     }
                 }
