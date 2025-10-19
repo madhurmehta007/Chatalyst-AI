@@ -20,7 +20,8 @@ fun AuthScreen(authViewModel: AuthViewModel, isLoading: Boolean) {
         SignUpScreen(
             isLoading = isLoading,
             onSignUpClick = { name, email, password -> authViewModel.signUp(name, email, password)
-            }
+            },
+            onBackToLoginClick = { showLogin = true } // Pass the lambda here
         )
     }
 }

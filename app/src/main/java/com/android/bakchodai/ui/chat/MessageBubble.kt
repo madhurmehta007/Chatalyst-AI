@@ -14,7 +14,6 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import coil.compose.AsyncImage
 import com.android.bakchodai.data.model.Message
 import com.android.bakchodai.data.model.User
 import com.android.bakchodai.ui.theme.WhatsAppDarkSentBubble
@@ -33,7 +32,6 @@ fun MessageBubble(
 ) {
     val horizontalAlignment = if (isFromMe) Alignment.End else Alignment.Start
 
-    // WhatsApp-style bubble shape
     val bubbleShape = if (isFromMe) {
         RoundedCornerShape(topStart = 16.dp, bottomStart = 16.dp, topEnd = 16.dp, bottomEnd = 4.dp)
     } else {
@@ -51,14 +49,13 @@ fun MessageBubble(
 
     Column(
         modifier = Modifier
-            .fillMaxWidth()
+            .fillMaxWidth() // The parent column takes full width
             .padding(horizontal = 8.dp, vertical = 4.dp),
-        horizontalAlignment = horizontalAlignment
+        horizontalAlignment = horizontalAlignment // This pushes the children to the start or end
     ) {
-        // Removed the old profile pic + name label that was outside the bubble
-
         Box(
             modifier = Modifier
+                .widthIn(max = 320.dp) // <-- THE FIX: Wrap content, but with a max width
                 .shadow(1.dp, bubbleShape)
                 .clip(bubbleShape)
                 .background(bubbleColor)
@@ -66,13 +63,11 @@ fun MessageBubble(
                 .padding(horizontal = 12.dp, vertical = 8.dp)
         ) {
             Column {
-                // *** UI IMPROVEMENT ***
-                // Add sender's name inside the bubble for groups
                 if (isGroup && !isFromMe) {
                     Text(
                         text = sender.name,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary, // Use a distinct color
+                        color = MaterialTheme.colorScheme.primary,
                         style = MaterialTheme.typography.labelMedium,
                         modifier = Modifier.padding(bottom = 4.dp)
                     )
@@ -88,20 +83,35 @@ fun MessageBubble(
                         .align(Alignment.End)
                         .padding(top = 4.dp)
                 )
+            }
+        }
 
-                // Display emoji reactions (simplified)
-                if (message.reactions?.isNotEmpty() == true) {
-                    Row {
-                        message.reactions.values.forEach { emoji ->
-                            Text(
-                                text = emoji,
-                                modifier = Modifier.padding(end = 4.dp)
-                            )
-                        }
+        // Emoji Reactions Display
+        if (message.reactions.isNotEmpty()) {
+            val groupedReactions = message.reactions.values.groupingBy { it }.eachCount()
+
+            Row(
+                modifier = Modifier
+                    .padding(top = 4.dp, start = 4.dp, end = 4.dp)
+            ) {
+                groupedReactions.forEach { (emoji, count) ->
+                    Surface(
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        modifier = Modifier.padding(horizontal = 2.dp),
+                        shadowElevation = 1.dp
+                    ) {
+                        Text(
+                            text = if (count > 1) "$emoji $count" else emoji,
+                            style = MaterialTheme.typography.labelSmall,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
                     }
                 }
             }
         }
+
+        // Emoji Picker
         if (showEmojiPicker) {
             Row {
                 listOf("😄", "😂", "👍", "🔥").forEach { emoji ->
