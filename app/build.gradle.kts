@@ -78,6 +78,7 @@ dependencies {
 
     // Google AI
     implementation("com.google.ai.client.generativeai:generativeai:0.9.0")
+    implementation("androidx.datastore:datastore-preferences:1.1.1")
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

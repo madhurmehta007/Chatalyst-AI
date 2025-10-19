@@ -129,8 +129,15 @@ class AuthViewModel(private val repository: ConversationRepository) : ViewModel(
                     // Reload the user to get the updated displayName.
                     firebaseUser.reload().await()
 
+                    // *** ADDED: Generate and save profile picture URL ***
+                    val avatarUrl = "https://ui-avatars.com/api/?name=${name.replace(" ", "+")}&background=random"
+
                     // Add the user to our application's database.
-                    val newUser = User(uid = firebaseUser.uid, name = name)
+                    val newUser = User(
+                        uid = firebaseUser.uid,
+                        name = name,
+                        profilePictureUrl = avatarUrl // Save the URL
+                    )
                     repository.addUser(newUser) // Suspend function called safely in coroutine.
 
                     // Authentication token and user data are now ready.
@@ -139,9 +146,7 @@ class AuthViewModel(private val repository: ConversationRepository) : ViewModel(
                     _authState.value = AuthState.LOGGED_IN
                 }
             } catch (e: Exception) {
-                // TODO: Handle sign-up error (e.g., show a toast message).
-                // Log.e("AuthViewModel", "Sign-up failed", e)
-                _authState.value = AuthState.LOGGED_OUT
+                // ... (catch block)
             } finally {
                 _isLoading.value = false
                 isProcessingAuthAction = false

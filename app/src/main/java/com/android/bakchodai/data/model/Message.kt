@@ -10,5 +10,6 @@ data class Message(
     val timestamp: Long = 0L,
     val type: MessageType = MessageType.TEXT,
     val status: MessageStatus = MessageStatus.SENT,
-    val reactions: Map<String, String> = emptyMap() // userId -> emoji
+    val reactions: Map<String, String> = emptyMap(), // userId -> emoji
+    val isEdited: Boolean = false // Added for edit feature
 )

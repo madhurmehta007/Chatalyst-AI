@@ -2,7 +2,10 @@ package com.android.bakchodai.ui.navigation
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -14,6 +17,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.android.bakchodai.data.model.User
 import com.android.bakchodai.data.repository.FirebaseConversationRepository
 import com.android.bakchodai.ui.auth.AuthScreen
 import com.android.bakchodai.ui.auth.AuthState
@@ -31,7 +35,9 @@ import com.android.bakchodai.ui.main.MainViewModelFactory
 import com.android.bakchodai.ui.newchat.NewChatScreen
 import com.android.bakchodai.ui.newchat.NewChatViewModel
 import com.android.bakchodai.ui.newchat.NewChatViewModelFactory
+import com.android.bakchodai.ui.profile.ProfileScreen
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppNavigation() {
     // --- SINGLE SOURCE OF TRUTH FOR DEPENDENCIES ---
@@ -48,7 +54,7 @@ fun AppNavigation() {
             }
         }
         AuthState.LOGGED_IN -> {
-            // Only show the main app when the user is fully logged in and initialized
+            // This is now the ONLY NavController
             val navController = rememberNavController()
             val mainViewModelFactory = remember { MainViewModelFactory(conversationRepository) }
             val chatViewModelFactory = remember { ChatViewModelFactory(conversationRepository) }
@@ -64,12 +70,42 @@ fun AppNavigation() {
                         onConversationClick = { conversationId ->
                             navController.navigate("chat/$conversationId")
                         },
+                        onProfileClick = {
+                            navController.navigate("profile")
+                        },
                         onNewChatClick = { navController.navigate("new_chat") },
-                        onNewGroupClick = { navController.navigate("create_group") },
-                        onSaveProfile = { newName -> authViewModel.updateUserName(newName) },
-                        onLogout = { authViewModel.logout() }
+                        onNewGroupClick = { navController.navigate("create_group") }
                     )
                 }
+
+                composable("profile") {
+                    val currentUser by authViewModel.user.collectAsState()
+                    // Fetch the full User object from the repository
+                    val users by viewModel<MainViewModel>(factory = mainViewModelFactory).users.collectAsState()
+                    val user = users.find { it.uid == currentUser?.uid }
+                        ?: User(uid = currentUser?.uid ?: "", name = currentUser?.displayName ?: "")
+
+                    Scaffold(
+                        topBar = {
+                            TopAppBar(
+                                title = { Text("Profile") },
+                                navigationIcon = {
+                                    IconButton(onClick = { navController.popBackStack() }) {
+                                        Icon(Icons.Filled.ArrowBack, contentDescription = "Back")
+                                    }
+                                }
+                            )
+                        }
+                    ) { paddingValues ->
+                        ProfileScreen(
+                            user = user, // Pass the full user object
+                            onSaveClick = { newName -> authViewModel.updateUserName(newName) },
+                            onLogoutClick = { authViewModel.logout() },
+                            modifier = Modifier.padding(paddingValues)
+                        )
+                    }
+                }
+
                 composable("new_chat") {
                     val newChatViewModel: NewChatViewModel = viewModel(factory = newChatViewModelFactory)
                     val users by newChatViewModel.users.collectAsState()
@@ -116,6 +152,8 @@ fun AppNavigation() {
                         }
                     }
                 }
+
+                // *** THIS IS THE CORRECTED LOGIC ***
                 composable("chat/{conversationId}") { backStackEntry ->
                     val conversationId = backStackEntry.arguments?.getString("conversationId")!!
                     val chatViewModel: ChatViewModel = viewModel(factory = chatViewModelFactory)
@@ -126,22 +164,40 @@ fun AppNavigation() {
 
                     val conversation by chatViewModel.conversation.collectAsState()
                     val users by chatViewModel.users.collectAsState()
-                    val isAiTyping by chatViewModel.isAiTyping.collectAsState() // Get typing state
+                    val isAiTyping by chatViewModel.isAiTyping.collectAsState()
+                    val isLoading by chatViewModel.isLoading.collectAsState() // Get loading state
 
-                    if (conversation == null) {
+                    if (isLoading) {
+                        // State 1: We are actively loading the conversation
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                             CircularProgressIndicator()
                         }
+                    } else if (conversation == null) {
+                        // State 2: Loading is finished, but conversation is still null.
+                        // This means it was deleted or invalid. Pop back to the main screen.
+                        LaunchedEffect(Unit) {
+                            navController.popBackStack()
+                        }
                     } else {
+                        // State 3: Loading is finished and we have a conversation to show
                         ChatScreen(
                             conversation = conversation!!,
                             users = users,
-                            isAiTyping = isAiTyping, // Pass state to the screen
+                            isAiTyping = isAiTyping,
                             onSendMessage = { message ->
                                 chatViewModel.sendMessage(conversationId, message)
                             },
                             onEmojiReact = { messageId, emoji ->
                                 chatViewModel.addEmojiReaction(conversationId, messageId, emoji)
+                            },
+                            onEditMessage = { messageId, newText ->
+                                chatViewModel.editMessage(conversationId, messageId, newText)
+                            },
+                            onDeleteMessage = { messageId ->
+                                chatViewModel.deleteMessage(conversationId, messageId)
+                            },
+                            onDeleteGroup = {
+                                chatViewModel.deleteGroup(conversationId)
                             },
                             onBack = { navController.popBackStack() }
                         )

@@ -1,5 +1,6 @@
 package com.android.bakchodai.ui.profile
 
+import android.widget.Toast
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -8,10 +9,13 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.android.bakchodai.data.model.User
+import com.android.bakchodai.ui.theme.ThemeHelper
+import kotlinx.coroutines.launch
 
 @Composable
 fun ProfileScreen(
@@ -21,10 +25,14 @@ fun ProfileScreen(
     modifier: Modifier = Modifier
 ) {
     var name by remember { mutableStateOf("") }
-    // Use remember with user as a key to update the URL when the user object changes
     val avatarUrl by remember(user) {
         mutableStateOf(user?.getAvatarUrl() ?: "https://ui-avatars.com/api/?name=?")
     }
+
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    // Read dark mode state from ThemeHelper
+    val isDarkTheme by ThemeHelper.isDarkTheme(context).collectAsState(initial = false)
 
     LaunchedEffect(user) {
         if (user != null) {
@@ -68,18 +76,48 @@ fun ProfileScreen(
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
-                    label = { Text("Display Name") }, // Changed label
+                    label = { Text("Display Name") },
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 Button(
-                    onClick = { onSaveClick(name) },
+                    onClick = {
+                        onSaveClick(name)
+                        Toast.makeText(context, "Profile Saved!", Toast.LENGTH_SHORT).show()
+                    },
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text("Save")
                 }
             }
         }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // *** Card for Settings (Dark Mode) ***
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = "Dark Mode",
+                    style = MaterialTheme.typography.bodyLarge
+                )
+                Switch(
+                    checked = isDarkTheme,
+                    onCheckedChange = { isChecked ->
+                        scope.launch {
+                            ThemeHelper.setDarkTheme(context, isChecked)
+                        }
+                    }
+                )
+            }
+        }
+
 
         Spacer(modifier = Modifier.weight(1f)) // Pushes logout button to bottom
 

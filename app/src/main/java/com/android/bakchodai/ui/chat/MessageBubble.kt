@@ -2,18 +2,39 @@ package com.android.bakchodai.ui.chat
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
 import com.android.bakchodai.data.model.Message
 import com.android.bakchodai.data.model.User
 import com.android.bakchodai.ui.theme.WhatsAppDarkSentBubble
@@ -22,110 +43,173 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MessageBubble(
     message: Message,
     isFromMe: Boolean,
     sender: User,
     isGroup: Boolean,
+    isSelected: Boolean, // For selection state
+    onLongPress: () -> Unit, // For selection
     onEmojiReact: (String) -> Unit
 ) {
-    val horizontalAlignment = if (isFromMe) Alignment.End else Alignment.Start
-
+    // --- Bubble ---
     val bubbleShape = if (isFromMe) {
         RoundedCornerShape(topStart = 16.dp, bottomStart = 16.dp, topEnd = 16.dp, bottomEnd = 4.dp)
     } else {
         RoundedCornerShape(topStart = 16.dp, bottomStart = 4.dp, topEnd = 16.dp, bottomEnd = 16.dp)
     }
-
     val bubbleColor = if (isFromMe) {
         if (androidx.compose.foundation.isSystemInDarkTheme()) WhatsAppDarkSentBubble else WhatsAppSentBubble
     } else {
         MaterialTheme.colorScheme.surfaceVariant
     }
-
     val textColor = MaterialTheme.colorScheme.onSurfaceVariant
+
+    // --- State ---
     var showEmojiPicker by remember { mutableStateOf(false) }
 
-    Column(
+    // --- Selection Highlight ---
+    val selectionColor = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) else Color.Transparent
+
+    // --- Main Layout ---
+    Row(
         modifier = Modifier
-            .fillMaxWidth() // The parent column takes full width
-            .padding(horizontal = 8.dp, vertical = 4.dp),
-        horizontalAlignment = horizontalAlignment // This pushes the children to the start or end
+            .fillMaxWidth()
+            .background(selectionColor) // Apply selection highlight
+            .padding(horizontal = 8.dp, vertical = 2.dp),
+        verticalAlignment = Alignment.Bottom,
+        // *** THE FIX IS HERE: Inlined the logic directly ***
+        horizontalArrangement = if (isFromMe) Arrangement.End else Arrangement.Start
     ) {
-        Box(
-            modifier = Modifier
-                .widthIn(max = 320.dp) // <-- THE FIX: Wrap content, but with a max width
-                .shadow(1.dp, bubbleShape)
-                .clip(bubbleShape)
-                .background(bubbleColor)
-                .clickable { showEmojiPicker = !showEmojiPicker }
-                .padding(horizontal = 12.dp, vertical = 8.dp)
-        ) {
-            Column {
-                if (isGroup && !isFromMe) {
-                    Text(
-                        text = sender.name,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary,
-                        style = MaterialTheme.typography.labelMedium,
-                        modifier = Modifier.padding(bottom = 4.dp)
-                    )
-                }
 
-                Text(text = message.content, color = textColor)
-
-                Text(
-                    text = SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date(message.timestamp)),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = textColor.copy(alpha = 0.7f),
-                    modifier = Modifier
-                        .align(Alignment.End)
-                        .padding(top = 4.dp)
-                )
-            }
+        // *** 1. Profile Icon (for incoming) ***
+        if (!isFromMe) {
+            AsyncImage(
+                model = sender.getAvatarUrl(),
+                contentDescription = "Sender Avatar",
+                modifier = Modifier
+                    .size(32.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .padding(bottom = 4.dp) // Align with bubble bottom
+            )
+            Spacer(modifier = Modifier.width(8.dp))
         }
 
-        // Emoji Reactions Display
-        if (message.reactions.isNotEmpty()) {
-            val groupedReactions = message.reactions.values.groupingBy { it }.eachCount()
+        // --- 2. Bubble + Reactions Column ---
+        Column(horizontalAlignment = if (isFromMe) Alignment.End else Alignment.Start) {
 
-            Row(
-                modifier = Modifier
-                    .padding(top = 4.dp, start = 4.dp, end = 4.dp)
-            ) {
-                groupedReactions.forEach { (emoji, count) ->
-                    Surface(
-                        shape = CircleShape,
-                        color = MaterialTheme.colorScheme.surfaceVariant,
-                        modifier = Modifier.padding(horizontal = 2.dp),
-                        shadowElevation = 1.dp
-                    ) {
+            var isDropdownExpanded by remember { mutableStateOf(false) } // Moved here
+
+            Box {
+                // This is the "anchor" for the menu
+                Box(
+                    modifier = Modifier
+                        .widthIn(max = 300.dp) // Constrain max width
+                        .shadow(1.dp, bubbleShape)
+                        .clip(bubbleShape)
+                        .background(bubbleColor)
+                        .pointerInput(Unit) { // Combined gesture detector
+                            detectTapGestures(
+                                onLongPress = { onLongPress() },
+                                onTap = { showEmojiPicker = !showEmojiPicker } // Short press
+                            )
+                        }
+                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                ) {
+                    Column {
+                        if (isGroup && !isFromMe) {
+                            Text(
+                                text = sender.name,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary,
+                                style = MaterialTheme.typography.labelMedium,
+                                modifier = Modifier.padding(bottom = 4.dp)
+                            )
+                        }
+
+                        Text(text = message.content, color = textColor)
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .align(Alignment.End)
+                                .padding(top = 4.dp)
+                        ) {
+                            if (message.isEdited) {
+                                Text(
+                                    text = "Edited",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = textColor.copy(alpha = 0.7f),
+                                    modifier = Modifier.padding(end = 8.dp)
+                                )
+                            }
+                            Text(
+                                text = SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date(message.timestamp)),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = textColor.copy(alpha = 0.7f)
+                            )
+                        }
+                    }
+                }
+
+                // --- The actual menu ---
+                // This was giving a "Composable invocations can only happen..." error
+                // because it was inside a non-composable lambda.
+                // It is now correctly placed inside the Box's content scope.
+                DropdownMenu(
+                    expanded = isDropdownExpanded,
+                    onDismissRequest = { isDropdownExpanded = false }
+                ) {
+                    // This is a placeholder as the long-press is now for selection.
+                    // You could add a "Copy" action here.
+                    DropdownMenuItem(
+                        text = { Text("Copy") },
+                        onClick = { isDropdownExpanded = false }
+                    )
+                }
+            } // End Box
+
+
+            // --- 4. Emoji Reactions ---
+            if (message.reactions.isNotEmpty()) {
+                val groupedReactions = message.reactions.values.groupingBy { it }.eachCount()
+                Row(modifier = Modifier.padding(top = 4.dp, start = 4.dp, end = 4.dp)) {
+                    groupedReactions.forEach { (emoji, count) ->
+                        Surface(
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            modifier = Modifier.padding(horizontal = 2.dp),
+                            shadowElevation = 1.dp
+                        ) {
+                            Text(
+                                text = if (count > 1) "$emoji $count" else emoji,
+                                style = MaterialTheme.typography.labelSmall,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
+                }
+            }
+
+            // --- 5. Emoji Picker (popup) ---
+            if (showEmojiPicker) {
+                Row {
+                    listOf("😄", "😂", "👍", "🔥").forEach { emoji ->
                         Text(
-                            text = if (count > 1) "$emoji $count" else emoji,
-                            style = MaterialTheme.typography.labelSmall,
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            text = emoji,
+                            modifier = Modifier
+                                .padding(4.dp)
+                                .clickable {
+                                    onEmojiReact(emoji)
+                                    showEmojiPicker = false
+                                }
                         )
                     }
                 }
             }
-        }
-
-        // Emoji Picker
-        if (showEmojiPicker) {
-            Row {
-                listOf("😄", "😂", "👍", "🔥").forEach { emoji ->
-                    Text(
-                        text = emoji,
-                        modifier = Modifier
-                            .padding(4.dp)
-                            .clickable {
-                                onEmojiReact(emoji)
-                                showEmojiPicker = false
-                            }
-                    )
-                }
-            }
-        }
-    }
+        } // End Bubble + Reactions Column
+    } // End Main Row
 }

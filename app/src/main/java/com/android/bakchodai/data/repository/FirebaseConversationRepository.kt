@@ -48,11 +48,11 @@ class FirebaseConversationRepository : ConversationRepository {
 
     suspend fun seedAiCharactersIfNeeded() {
         val aiUsers = listOf(
-            User(uid = "ai_rahul", name = "Rahul", personality = "The funny guy who always cracks jokes and roasts everyone, loves IPL and cricket banter."),
-            User(uid = "ai_priya", name = "Priya", personality = "Sassy gossip queen, always sharing juicy life updates and planning wild trips."),
-            User(uid = "ai_amit", name = "Amit", personality = "Tech geek dropping random facts, but gets hilariously roasted for being too nerdy."),
-            User(uid = "ai_sneha", name = "Sneha", personality = "The chaotic planner who suggests epic trip ideas but turns everything into a comedy of errors."),
-            User(uid = "ai_vikram", name = "Vikram", personality = "Quiet observer who suddenly drops deep thoughts, memes, or savage one-liners out of nowhere.")
+            User(uid = "ai_rahul", name = "Rahul", personality = "The funny guy...", profilePictureUrl = "https://ui-avatars.com/api/?name=Rahul&background=random"),
+            User(uid = "ai_priya", name = "Priya", personality = "Sassy gossip queen...", profilePictureUrl = "https://ui-avatars.com/api/?name=Priya&background=random"),
+            User(uid = "ai_amit", name = "Amit", personality = "Tech geek...", profilePictureUrl = "https://ui-avatars.com/api/?name=Amit&background=random"),
+            User(uid = "ai_sneha", name = "Sneha", personality = "The chaotic planner...", profilePictureUrl = "https://ui-avatars.com/api/?name=Sneha&background=random"),
+            User(uid = "ai_vikram", name = "Vikram", personality = "Quiet observer...", profilePictureUrl = "https://ui-avatars.com/api/?name=Vikram&background=random")
         )
 
         for (aiUser in aiUsers) {
@@ -228,5 +228,41 @@ class FirebaseConversationRepository : ConversationRepository {
             ref.addValueEventListener(listener)
             awaitClose { ref.removeEventListener(listener) }
         }
+    }
+
+    override suspend fun updateMessage(conversationId: String, messageId: String, newText: String) {
+        val messageUpdate = mapOf(
+            "content" to newText,
+            "isEdited" to true,
+            "timestamp" to System.currentTimeMillis() // Optionally update timestamp
+        )
+        database.child("conversations/$conversationId/messages/$messageId")
+            .updateChildren(messageUpdate)
+            .await()
+    }
+
+    override suspend fun deleteMessage(conversationId: String, messageId: String) {
+        database.child("conversations/$conversationId/messages/$messageId")
+            .removeValue()
+            .await()
+    }
+
+    override suspend fun deleteGroup(conversationId: String) {
+        // First, get the conversation to find all participants
+        val conversation = getConversation(conversationId) ?: return
+        val participantIds = conversation.participants.keys
+
+        val childUpdates = mutableMapOf<String, Any?>()
+
+        // 1. Mark the group for deletion
+        childUpdates["/conversations/$conversationId"] = null
+
+        // 2. Mark the group for deletion from each participant's list
+        participantIds.forEach { participantId ->
+            childUpdates["/user-conversations/$participantId/$conversationId"] = null
+        }
+
+        // 3. Atomically delete all entries
+        database.updateChildren(childUpdates).await()
     }
 }

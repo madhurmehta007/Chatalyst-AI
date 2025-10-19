@@ -28,6 +28,10 @@ class ChatViewModel(
     private val _isAiTyping = MutableStateFlow(false)
     val isAiTyping: StateFlow<Boolean> = _isAiTyping.asStateFlow()
 
+    // *** ADDED: Loading state ***
+    private val _isLoading = MutableStateFlow(true)
+    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+
     init {
         viewModelScope.launch {
             repository.getUsersFlow().collectLatest { userList ->
@@ -37,6 +41,7 @@ class ChatViewModel(
     }
 
     fun loadConversation(conversationId: String) {
+        _isLoading.value = true // Set loading to true when we start
         viewModelScope.launch {
             repository.getConversationFlow(conversationId).collectLatest { conv ->
                 // Check if the latest message is from a human, if so, AI is done typing
@@ -45,6 +50,7 @@ class ChatViewModel(
                     _isAiTyping.value = false
                 }
                 _conversation.value = conv
+                _isLoading.value = false // Set loading to false after we get the first value
             }
         }
     }
@@ -72,6 +78,26 @@ class ChatViewModel(
             val ref = Firebase.database.reference
                 .child("conversations/$conversationId/messages/$messageId/reactions/${currentUser.uid}")
             ref.setValue(emoji)
+        }
+    }
+
+    // --- New Functions ---
+
+    fun editMessage(conversationId: String, messageId: String, newText: String) {
+        viewModelScope.launch {
+            repository.updateMessage(conversationId, messageId, newText)
+        }
+    }
+
+    fun deleteMessage(conversationId: String, messageId: String) {
+        viewModelScope.launch {
+            repository.deleteMessage(conversationId, messageId)
+        }
+    }
+
+    fun deleteGroup(conversationId: String) {
+        viewModelScope.launch {
+            repository.deleteGroup(conversationId)
         }
     }
 }
