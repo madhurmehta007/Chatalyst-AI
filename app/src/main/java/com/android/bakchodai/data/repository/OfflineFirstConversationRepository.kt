@@ -337,8 +337,16 @@ class OfflineFirstConversationRepository @Inject constructor(
     }
 
     // --- Mapper functions ---
-    private fun User.toEntity() = UserEntity(uid, name, avatarUrl, personality)
-    private fun UserEntity.toModel() = User(uid, name, avatarUrl, personality)
+    private fun User.toEntity() = UserEntity(
+        uid, name, avatarUrl, personality,
+        // Add new fields
+        backgroundStory, interests, speakingStyle
+    )
+    private fun UserEntity.toModel() = User(
+        uid, name, avatarUrl, personality,
+        // Add new fields
+        backgroundStory, interests, speakingStyle
+    )
     private fun Conversation.toEntity() = ConversationEntity(id, name, participants, messages, group, topic)
     private fun ConversationEntity.toModel() = Conversation(id, name, participants, messages, isGroup, topic)
 }

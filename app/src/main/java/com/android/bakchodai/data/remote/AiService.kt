@@ -3,7 +3,7 @@ package com.android.bakchodai.data.remote
 import android.util.Log
 import com.android.bakchodai.BuildConfig
 import com.android.bakchodai.data.model.Message
-import com.android.bakchodai.data.model.User // Import User model
+import com.android.bakchodai.data.model.User
 import com.google.ai.client.generativeai.GenerativeModel
 import com.google.ai.client.generativeai.type.GenerateContentResponse
 import com.google.ai.client.generativeai.type.RequestOptions
@@ -53,28 +53,38 @@ class AiService @Inject constructor() {
         history: List<Message>,
         speakingAiUid: String,
         topic: String,
-        personality: String,
         allUsersInChat: List<User> // <-- Pass the list of all users in this chat
     ): String = withContext(Dispatchers.IO) {
-        // Find the speaking AI's name
-        val speakingAiName = allUsersInChat.find { it.uid == speakingAiUid }?.name ?: speakingAiUid.removePrefix("ai_").replaceFirstChar { it.titlecase() }
+        val speakingAiUser = allUsersInChat.find { it.uid == speakingAiUid }
+        if (speakingAiUser == null) {
+            Log.e("AiService", "Speaking AI user object not found for UID: $speakingAiUid")
+            return@withContext "Error: My configuration is missing."
+        }
+        val speakingAiName = speakingAiUser.name
 
-        // Get all member names for the prompt
-        val memberNames = allUsersInChat.joinToString { it.name } // Get names like "Rahul, Priya, YourName"
+        // *** Construct detailed persona description ***
+        val personaDescription = """
+You MUST act AS $speakingAiName. DO NOT mention you are an AI.
+Your character details:
+- Summary: ${speakingAiUser.personality}
+- Background: ${speakingAiUser.backgroundStory}
+- Interests: ${speakingAiUser.interests.ifBlank { "Not specified" }}
+- Speaking Style: ${speakingAiUser.speakingStyle}
+""".trimIndent()
 
-        // Find a human user's name to use in the example, default if none found
+        val memberNames = allUsersInChat.joinToString { it.name }
         val exampleHumanName = allUsersInChat.firstOrNull { !it.uid.startsWith("ai_") }?.name ?: "HumanUser"
 
         val systemPrompt = """
-You are $speakingAiName, a fun friend in this group chat.
-Personality: $personality
-Topic: $topic
-The members currently in this chat are: $memberNames.
-Keep responses short, 1-3 sentences, casual, funny, chaotic. Banter, roast, gossip, plan trips, IPL talk, life updates.
-Do not repeat or be boring. Make it feel like real friends group - chaotic and hilarious!
-IMPORTANT: Refer to other members by their NAME (e.g., "$exampleHumanName" or "Priya"), not their ID (like hCmh... or ai_...).
+$personaDescription
+
+You are in a group chat with: $memberNames.
+The current topic (if any): $topic
+Your goal is to participate naturally in the conversation based on your persona.
+Keep responses short, 1-3 sentences, casual, funny, chaotic (as per your persona). Banter, roast, gossip, plan trips, IPL talk, life updates.
+IMPORTANT: Refer to other members by their NAME (e.g., "$exampleHumanName" or "Priya"), not their ID.
 IMPORTANT: Do NOT use any markdown formatting like **bold** or *italics*. Just plain text.
-IMPORTANT: Do NOT start your response with your own name (e.g., "$speakingAiName:"). Just write the message content.
+IMPORTANT: Do NOT start your response with your own name (e.g., "$speakingAiName:"). Just write the message content like a real person would.
 """.trimIndent()
 
         // Create a map for easy name lookup during history construction
@@ -98,16 +108,14 @@ IMPORTANT: Do NOT start your response with your own name (e.g., "$speakingAiName
                 }
             }
 
-        // Use a model instance specifically configured with the system prompt
-        val modelWithSystem = GenerativeModel(
-            modelName = "gemini-2.5-flash", // Consistent model name
-            apiKey = BuildConfig.GEMINI_API_KEY,
-            systemInstruction = content { text(systemPrompt) },
-            requestOptions = RequestOptions(timeout = 60_000) // Timeout for group response
-        )
-
         return@withContext try {
             Log.d("AiService", "Generating group response for $speakingAiName with history size ${historyContent.size}")
+            val modelWithSystem = GenerativeModel(
+                modelName = "gemini-2.5-flash",
+                apiKey = BuildConfig.GEMINI_API_KEY,
+                systemInstruction = content { text(systemPrompt) },
+                requestOptions = RequestOptions(timeout = 60_000)
+            )
             val response: GenerateContentResponse = modelWithSystem.generateContent(*historyContent.toTypedArray())
             val cleanedText = cleanResponse(response.text?.take(200)) // Clean and limit length
             Log.d("AiService", "Raw response: ${response.text}, Cleaned response: $cleanedText")

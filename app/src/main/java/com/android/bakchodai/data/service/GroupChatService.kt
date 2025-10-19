@@ -70,7 +70,7 @@ class GroupChatService(
                         // *** AI TIMEOUT LOGIC ***
                         val timeSinceLastMessage = currentTime - lastTimestamp
                         // Check if inactive for more than 200 seconds (and it's not a brand new chat)
-                        val isChatInactive = timeSinceLastMessage > 200_000 && lastTimestamp != 0L
+                        val isChatInactive = timeSinceLastMessage > 150_000 && lastTimestamp != 0L
 
                         if (isChatInactive) {
                             Log.d("GroupChatService", "Conv ${conversation.id}: Skipping AI response, chat inactive for ${timeSinceLastMessage / 1000}s.")
@@ -80,7 +80,7 @@ class GroupChatService(
                         // Decide if an AI should speak (only if chat is active)
                         val humanSpokeRecently = lastMessage != null && !lastMessage.senderId.startsWith("ai_")
                         // Lower random chance to reduce chattiness in quiet groups
-                        val randomChance = Random.nextFloat() < 0.05f // 5% chance if no human spoke
+                        val randomChance = Random.nextFloat() < 0.5f // 50% chance if no human spoke
 
                         val shouldAiSpeak = humanSpokeRecently || randomChance
 
@@ -115,15 +115,13 @@ class GroupChatService(
 
                                 Log.d("GroupChatService", "AI ${speakingAiUser?.name ?: speakingAiUid} speaking. Personality: '$personality'")
 
-                                // *** Pass the list of users in this chat ***
+                                val personalityForCall = speakingAiUser?.personality
                                 val response = aiService.generateGroupResponse(
                                     history,
                                     speakingAiUid,
                                     conversation.topic,
-                                    personality,
-                                    usersInThisChat // Pass the filtered list
+                                    usersInThisChat
                                 )
-
                                 // Check response before saving
                                 if (response.isNotBlank() && response != "..." && !response.startsWith("Brain freeze") && !response.startsWith("Uh, pass")) {
                                     Log.d("GroupChatService", "AI ${speakingAiUser?.name ?: speakingAiUid} response: $response")
@@ -145,7 +143,7 @@ class GroupChatService(
                     Log.e("GroupChatService", "Error in service loop", e)
                     // Avoid crashing the service, wait before retrying
                 }
-                delay(60000) // Check conversations every 1 minute
+                delay(20000) // Check conversations every 20 seconds
             }
             Log.d("GroupChatService", "Service loop finished.")
         }

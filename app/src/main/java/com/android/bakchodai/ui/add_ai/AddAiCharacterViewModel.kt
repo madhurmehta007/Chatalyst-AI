@@ -24,9 +24,16 @@ class AddAiCharacterViewModel @Inject constructor(private val repository: Conver
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
 
-    fun addAiCharacter(name: String, personality: String) {
-        if (name.isBlank() || personality.isBlank()) {
-            _errorMessage.value = "Name and Personality cannot be empty."
+    fun addAiCharacter(
+        name: String,
+        personality: String,
+        background: String, // New
+        interests: String, // New
+        style: String // New
+    ) {
+        // Basic validation
+        if (name.isBlank() || personality.isBlank() || background.isBlank() || style.isBlank()) {
+            _errorMessage.value = "All fields except Interests are required."
             return
         }
 
@@ -35,25 +42,27 @@ class AddAiCharacterViewModel @Inject constructor(private val repository: Conver
             _errorMessage.value = null
             _addSuccess.value = false
             try {
-                // Generate unique ID (simple approach, consider checking for duplicates in production)
                 val aiUid = "ai_${name.trim().lowercase().replace("\\s+".toRegex(), "_")}_${UUID.randomUUID().toString().substring(0, 4)}"
                 val avatarUrl = "https://ui-avatars.com/api/?name=${name.replace(" ", "+")}&background=random"
 
                 val newAiUser = User(
                     uid = aiUid,
                     name = name.trim(),
-                    personality = personality.trim(),
-                    avatarUrl = avatarUrl
+                    personality = personality.trim(), // Short summary
+                    avatarUrl = avatarUrl,
+                    // Save new fields
+                    backgroundStory = background.trim(),
+                    interests = interests.trim(), // Can be blank
+                    speakingStyle = style.trim()
                 )
 
-                repository.addUser(newAiUser)
-                _addSuccess.value = true // Signal success for navigation
+                repository.addUser(newAiUser) // addUser in repo needs to handle the User model
+                _addSuccess.value = true
 
             } catch (e: Exception) {
-                _errorMessage.value = "Failed to add AI character: ${e.message}"
-            } finally {
-                _isLoading.value = false
             }
+            finally { _isLoading.value = false }
+
         }
     }
 

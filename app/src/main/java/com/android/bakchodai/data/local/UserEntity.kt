@@ -12,7 +12,10 @@ data class UserEntity(
     @PrimaryKey val uid: String,
     val name: String,
     val avatarUrl: String?,
-    val personality: String
+    val personality: String,
+    val backgroundStory: String,
+    val interests: String,
+    val speakingStyle: String
 )
 
 @Entity(tableName = "conversations")
