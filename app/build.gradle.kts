@@ -6,6 +6,8 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     id("com.google.gms.google-services")
+    id("kotlin-kapt")
+    id("com.google.dagger.hilt.android")
 }
 
 val localProperties = Properties()
@@ -55,6 +57,9 @@ android {
         load(FileInputStream(rootProject.file("local.properties")))
         android.defaultConfig.buildConfigField("String", "GEMINI_API_KEY", "\"${getProperty("GEMINI_API_KEY")}\"")
     }
+    kapt {
+        correctErrorTypes = true
+    }
 }
 
 dependencies {
@@ -88,4 +93,17 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
     implementation("io.coil-kt:coil-compose:2.4.0")
+
+    val room_version = "2.6.1"
+    implementation("androidx.room:room-runtime:$room_version")
+    kapt("androidx.room:room-compiler:$room_version")
+    implementation("androidx.room:room-ktx:$room_version") // Kotlin Extensions and Coroutines support
+
+    // Hilt for Dependency Injection
+    implementation("com.google.dagger:hilt-android:2.51.1")
+    kapt("com.google.dagger:hilt-compiler:2.51.1")
+
+    // Gson for Type Converters (to save complex objects in Room)
+    implementation("com.google.code.gson:gson:2.10.1")
+    implementation("androidx.hilt:hilt-navigation-compose:1.2.0") // Or the latest version
 }

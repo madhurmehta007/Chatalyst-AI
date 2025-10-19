@@ -8,10 +8,14 @@ import com.google.ai.client.generativeai.GenerativeModel
 import com.google.ai.client.generativeai.type.GenerateContentResponse // Import specific response type
 import com.google.ai.client.generativeai.type.RequestOptions // Import RequestOptions
 import com.google.ai.client.generativeai.type.content
+import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import javax.inject.Inject
+import javax.inject.Singleton
 
-class AiService {
+@Singleton
+class AiService @Inject constructor() {
 
     // Keep only one model instance
     private val generativeModel = GenerativeModel(

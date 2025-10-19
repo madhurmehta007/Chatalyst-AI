@@ -11,11 +11,13 @@ import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.auth.ktx.userProfileChangeRequest
 import com.google.firebase.ktx.Firebase
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import javax.inject.Inject
 
 /**
  * Represents the authentication states of the user.
@@ -37,7 +39,8 @@ enum class AuthState {
  *
  * @param repository The repository for managing conversation and user data.
  */
-class AuthViewModel(private val repository: ConversationRepository) : ViewModel() {
+@HiltViewModel
+class AuthViewModel @Inject constructor(private val repository: ConversationRepository) : ViewModel() {
 
     private val auth: FirebaseAuth = Firebase.auth
 

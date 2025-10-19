@@ -5,7 +5,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material3.*
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -13,7 +19,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -21,30 +27,24 @@ import com.android.bakchodai.data.model.User
 import com.android.bakchodai.data.repository.FirebaseConversationRepository
 import com.android.bakchodai.ui.add_ai.AddAiCharacterScreen
 import com.android.bakchodai.ui.add_ai.AddAiCharacterViewModel
-import com.android.bakchodai.ui.add_ai.AddAiCharacterViewModelFactory
 import com.android.bakchodai.ui.auth.AuthScreen
 import com.android.bakchodai.ui.auth.AuthState
 import com.android.bakchodai.ui.auth.AuthViewModel
-import com.android.bakchodai.ui.auth.AuthViewModelFactory
 import com.android.bakchodai.ui.chat.ChatScreen
 import com.android.bakchodai.ui.chat.ChatViewModel
-import com.android.bakchodai.ui.chat.ChatViewModelFactory
 import com.android.bakchodai.ui.creategroup.CreateGroupScreen
 import com.android.bakchodai.ui.creategroup.CreateGroupViewModel
-import com.android.bakchodai.ui.creategroup.CreateGroupViewModelFactory
 import com.android.bakchodai.ui.main.MainScreen
 import com.android.bakchodai.ui.main.MainViewModel
-import com.android.bakchodai.ui.main.MainViewModelFactory
 import com.android.bakchodai.ui.newchat.NewChatScreen
 import com.android.bakchodai.ui.newchat.NewChatViewModel
-import com.android.bakchodai.ui.newchat.NewChatViewModelFactory
 import com.android.bakchodai.ui.profile.ProfileScreen
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppNavigation() {
     val conversationRepository = remember { FirebaseConversationRepository() }
-    val authViewModel: AuthViewModel = viewModel(factory = AuthViewModelFactory(conversationRepository))
+    val authViewModel: AuthViewModel = hiltViewModel()
     val authState by authViewModel.authState.collectAsState()
     val authIsLoading by authViewModel.isLoading.collectAsState()
 
@@ -55,21 +55,13 @@ fun AppNavigation() {
                 CircularProgressIndicator()
             }
         }
+
         AuthState.LOGGED_IN -> {
             val navController = rememberNavController()
-            val mainViewModelFactory = remember { MainViewModelFactory(conversationRepository) }
-            val chatViewModelFactory = remember { ChatViewModelFactory(conversationRepository) }
-            val createGroupViewModelFactory = remember { CreateGroupViewModelFactory(conversationRepository) }
-            val newChatViewModelFactory = remember { NewChatViewModelFactory(conversationRepository) }
-            val addAiViewModelFactory = remember {
-                AddAiCharacterViewModelFactory(
-                    conversationRepository
-                )
-            }
 
             NavHost(navController = navController, startDestination = "main") {
                 composable("main") {
-                    val mainViewModel: MainViewModel = viewModel(factory = mainViewModelFactory)
+                    val mainViewModel: MainViewModel = hiltViewModel()
                     MainScreen(
                         mainViewModel = mainViewModel,
                         authViewModel = authViewModel,
@@ -85,8 +77,9 @@ fun AppNavigation() {
                 }
 
                 composable("profile") {
+                    val mainViewModel: MainViewModel = hiltViewModel()
                     val currentUser by authViewModel.user.collectAsState()
-                    val users by viewModel<MainViewModel>(factory = mainViewModelFactory).users.collectAsState()
+                    val users by mainViewModel.users.collectAsState()
                     val user = users.find { it.uid == currentUser?.uid }
                         ?: User(uid = currentUser?.uid ?: "", name = currentUser?.displayName ?: "")
 
@@ -112,7 +105,7 @@ fun AppNavigation() {
                 }
 
                 composable("new_chat") {
-                    val newChatViewModel: NewChatViewModel = viewModel(factory = newChatViewModelFactory)
+                    val newChatViewModel: NewChatViewModel = hiltViewModel()
                     val users by newChatViewModel.users.collectAsState()
                     val isLoading by newChatViewModel.isLoading.collectAsState()
                     val conversationId by newChatViewModel.navigateToConversation.collectAsState()
@@ -140,7 +133,7 @@ fun AppNavigation() {
                 }
 
                 composable("add_ai_character") {
-                    val addAiViewModel: AddAiCharacterViewModel = viewModel(factory = addAiViewModelFactory)
+                    val addAiViewModel: AddAiCharacterViewModel = hiltViewModel()
                     AddAiCharacterScreen(
                         viewModel = addAiViewModel,
                         onBack = { navController.popBackStack() },
@@ -149,7 +142,7 @@ fun AppNavigation() {
                 }
 
                 composable("create_group") {
-                    val createGroupViewModel: CreateGroupViewModel = viewModel(factory = createGroupViewModelFactory)
+                    val createGroupViewModel: CreateGroupViewModel = hiltViewModel()
                     val users by createGroupViewModel.users.collectAsState()
                     val isLoading by createGroupViewModel.isLoading.collectAsState()
                     val groupCreated by createGroupViewModel.groupCreated.collectAsState()
@@ -175,7 +168,7 @@ fun AppNavigation() {
                 // *** THIS IS THE CORRECTED LOGIC ***
                 composable("chat/{conversationId}") { backStackEntry ->
                     val conversationId = backStackEntry.arguments?.getString("conversationId")!!
-                    val chatViewModel: ChatViewModel = viewModel(factory = chatViewModelFactory)
+                    val chatViewModel: ChatViewModel = hiltViewModel()
 
                     LaunchedEffect(conversationId) {
                         chatViewModel.loadConversation(conversationId)
@@ -188,7 +181,10 @@ fun AppNavigation() {
 
                     if (isLoading) {
                         // State 1: We are actively loading the conversation
-                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
                             CircularProgressIndicator()
                         }
                     } else if (conversation == null) {

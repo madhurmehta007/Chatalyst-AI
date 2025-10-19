@@ -1,5 +1,6 @@
 package com.android.bakchodai.ui.chat
 
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
@@ -104,26 +105,30 @@ fun ChatScreen(
                 .padding(paddingValues)
                 .background(chatBgColor)
         ) {
+            val messages = conversation.messages.values.sortedByDescending { it.timestamp }
+
             LazyColumn(
                 state = listState,
                 modifier = Modifier.weight(1f),
                 reverseLayout = true,
                 contentPadding = PaddingValues(vertical = 8.dp)
             ) {
-                val messages = conversation.messages.values.sortedByDescending { it.timestamp }
-                items(messages, key = { it.id }) { message ->
-                    val sender = usersById[message.senderId] ?: User(name = "Unknown")
-                    MessageBubble(
-                        message = message,
-                        isFromMe = message.senderId == currentUserId,
-                        sender = sender,
-                        isGroup = conversation.group,
-                        isSelected = (selectedMessageId == message.id), // Pass selection state
-                        onLongPress = {
-                            selectedMessageId = message.id // Set selection
-                        },
-                        onEmojiReact = { emoji -> onEmojiReact(message.id, emoji) }
-                    )
+                items(messages, key = { it.id }) { message -> // Use the messages list directly
+                    val sender = usersById[message.senderId] ?: User(uid = message.senderId, name = "Unknown") // Handle unknown sender
+                    if (message.id.isNotBlank()) { // Add a check for valid message ID
+                        MessageBubble(
+                            message = message,
+                            isFromMe = message.senderId == currentUserId,
+                            sender = sender,
+                            isGroup = conversation.group,
+                            isSelected = (selectedMessageId == message.id),
+                            onLongPress = { selectedMessageId = message.id },
+                            onEmojiReact = { emoji -> onEmojiReact(message.id, emoji) }
+                        )
+                    } else {
+                        // Log or handle messages without an ID if necessary
+                        Log.w("ChatScreen", "Message found without valid ID: ${message.content}")
+                    }
                 }
             }
             MessageInput(onSendMessage = onSendMessage)

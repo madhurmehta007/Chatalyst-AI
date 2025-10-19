@@ -7,16 +7,13 @@ import java.net.URLEncoder
 data class User(
     val uid: String = "",
     val name: String = "",
-    val avatarUrl: String = "\"https://ui-avatars.com/api/?name=${
-        name.replace(
-            " ",
-            "+"
-        )
-    }&background=random\"",
+    val avatarUrl: String? = null,
     val personality: String = ""
 ){
     fun resolveAvatarUrl(): String {
-        return avatarUrl.ifBlank {
+        return if (!avatarUrl.isNullOrBlank()) {
+            avatarUrl // Use the URL from Firebase if it exists
+        } else {
             // Generate a default URL if Firebase doesn't have one
             val encodedName = try {
                 URLEncoder.encode(name, "UTF-8")
