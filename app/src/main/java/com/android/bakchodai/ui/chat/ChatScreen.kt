@@ -194,7 +194,7 @@ private fun NormalTopBar(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 val avatarUrl = if (!conversation.group) {
                     val otherUserId = conversation.participants.keys.firstOrNull { it != currentUserId }
-                    usersById[otherUserId]?.avatarUrl ?: "https://ui-avatars.com/api/?name=?"
+                    usersById[otherUserId]?.resolveAvatarUrl() ?: "https://ui-avatars.com/api/?name=?"
                 } else {
                     "https://ui-avatars.com/api/?name=${conversation.name.replace(" ", "+")}&background=random"
                 }

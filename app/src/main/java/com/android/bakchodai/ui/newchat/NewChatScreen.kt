@@ -7,6 +7,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
@@ -28,6 +29,7 @@ fun NewChatScreen(
     users: List<User>,
     isLoading: Boolean,
     onUserClick: (User) -> Unit,
+    onAddAiClick: () -> Unit, // New navigation lambda
     onBack: () -> Unit
 ) {
     Scaffold(
@@ -40,6 +42,12 @@ fun NewChatScreen(
                     }
                 }
             )
+        },
+        // *** ADDED: Floating Action Button ***
+        floatingActionButton = {
+            FloatingActionButton(onClick = onAddAiClick) {
+                Icon(Icons.Default.Add, contentDescription = "Add AI Character")
+            }
         }
     ) { paddingValues ->
         if (isLoading) {
@@ -51,7 +59,17 @@ fun NewChatScreen(
             ) {
                 CircularProgressIndicator()
             }
-        } else {
+        } else if (users.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("No AI characters found.\nTap '+' to add one!", modifier = Modifier.padding(16.dp))
+            }
+        }
+        else {
             LazyColumn(modifier = Modifier.padding(paddingValues)) {
                 items(users) { user ->
                     UserListItem(
@@ -80,7 +98,7 @@ private fun UserListItem(
         verticalAlignment = Alignment.CenterVertically
     ) {
         AsyncImage(
-            model = user.avatarUrl,
+            model = user.resolveAvatarUrl(), // Use the correct function
             contentDescription = "Profile Picture",
             modifier = Modifier
                 .size(50.dp)

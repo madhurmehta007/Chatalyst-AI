@@ -31,7 +31,7 @@ fun ProfileScreen(
 ) {
     var name by remember { mutableStateOf("") }
     val avatarUrl by remember(user) {
-        mutableStateOf(user?.avatarUrl ?: "https://ui-avatars.com/api/?name=?")
+        mutableStateOf(user?.resolveAvatarUrl() ?: "https://ui-avatars.com/api/?name=?")
     }
 
     val context = LocalContext.current

@@ -19,6 +19,9 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.android.bakchodai.data.model.User
 import com.android.bakchodai.data.repository.FirebaseConversationRepository
+import com.android.bakchodai.ui.add_ai.AddAiCharacterScreen
+import com.android.bakchodai.ui.add_ai.AddAiCharacterViewModel
+import com.android.bakchodai.ui.add_ai.AddAiCharacterViewModelFactory
 import com.android.bakchodai.ui.auth.AuthScreen
 import com.android.bakchodai.ui.auth.AuthState
 import com.android.bakchodai.ui.auth.AuthViewModel
@@ -40,7 +43,6 @@ import com.android.bakchodai.ui.profile.ProfileScreen
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppNavigation() {
-    // --- SINGLE SOURCE OF TRUTH FOR DEPENDENCIES ---
     val conversationRepository = remember { FirebaseConversationRepository() }
     val authViewModel: AuthViewModel = viewModel(factory = AuthViewModelFactory(conversationRepository))
     val authState by authViewModel.authState.collectAsState()
@@ -54,12 +56,16 @@ fun AppNavigation() {
             }
         }
         AuthState.LOGGED_IN -> {
-            // This is now the ONLY NavController
             val navController = rememberNavController()
             val mainViewModelFactory = remember { MainViewModelFactory(conversationRepository) }
             val chatViewModelFactory = remember { ChatViewModelFactory(conversationRepository) }
             val createGroupViewModelFactory = remember { CreateGroupViewModelFactory(conversationRepository) }
             val newChatViewModelFactory = remember { NewChatViewModelFactory(conversationRepository) }
+            val addAiViewModelFactory = remember {
+                AddAiCharacterViewModelFactory(
+                    conversationRepository
+                )
+            }
 
             NavHost(navController = navController, startDestination = "main") {
                 composable("main") {
@@ -80,7 +86,6 @@ fun AppNavigation() {
 
                 composable("profile") {
                     val currentUser by authViewModel.user.collectAsState()
-                    // Fetch the full User object from the repository
                     val users by viewModel<MainViewModel>(factory = mainViewModelFactory).users.collectAsState()
                     val user = users.find { it.uid == currentUser?.uid }
                         ?: User(uid = currentUser?.uid ?: "", name = currentUser?.displayName ?: "")
@@ -118,6 +123,10 @@ fun AppNavigation() {
                         onUserClick = { user ->
                             newChatViewModel.findOrCreateConversation(user)
                         },
+                        // *** ADDED: Navigate to new screen ***
+                        onAddAiClick = {
+                            navController.navigate("add_ai_character")
+                        },
                         onBack = { navController.popBackStack() }
                     )
 
@@ -129,6 +138,16 @@ fun AppNavigation() {
                         }
                     }
                 }
+
+                composable("add_ai_character") {
+                    val addAiViewModel: AddAiCharacterViewModel = viewModel(factory = addAiViewModelFactory)
+                    AddAiCharacterScreen(
+                        viewModel = addAiViewModel,
+                        onBack = { navController.popBackStack() },
+                        onAddSuccess = { navController.popBackStack() } // Go back after adding
+                    )
+                }
+
                 composable("create_group") {
                     val createGroupViewModel: CreateGroupViewModel = viewModel(factory = createGroupViewModelFactory)
                     val users by createGroupViewModel.users.collectAsState()

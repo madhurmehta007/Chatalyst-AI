@@ -91,7 +91,7 @@ fun MessageBubble(
         // *** 1. Profile Icon (for incoming) ***
         if (!isFromMe) {
             AsyncImage(
-                model = sender.avatarUrl,
+                model = sender.resolveAvatarUrl(),
                 contentDescription = "Sender Avatar",
                 modifier = Modifier
                     .size(32.dp)
