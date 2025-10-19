@@ -4,7 +4,6 @@ package com.android.bakchodai.data.remote
 import com.android.bakchodai.BuildConfig
 import com.android.bakchodai.data.model.Message
 import com.google.ai.client.generativeai.GenerativeModel
-import com.google.ai.client.generativeai.type.Content
 import com.google.ai.client.generativeai.type.content
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext

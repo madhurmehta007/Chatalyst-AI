@@ -1,6 +1,5 @@
 package com.android.bakchodai.data.service
 
-import com.android.bakchodai.data.model.Conversation
 import com.android.bakchodai.data.model.Message
 import com.android.bakchodai.data.model.User
 import com.android.bakchodai.data.remote.AiService
@@ -32,8 +31,7 @@ class GroupChatService(
                 conversations.forEach { conversation ->
                     val lastMessage = conversation.messages.values.maxByOrNull { it.timestamp }
 
-                    // Decide if an AI should speak.
-                    // Speak if a human just spoke, or there's a 30% chance of speaking spontaneously.
+                    // Decide if an AI should speak in group chats
                     val shouldAiSpeak = (lastMessage != null && !lastMessage.senderId.startsWith("ai_")) || Random.nextFloat() < 0.3f
 
                     if (shouldAiSpeak) {
@@ -52,7 +50,7 @@ class GroupChatService(
                         }
                     }
                 }
-                kotlinx.coroutines.delay(30000) // Check every 30 seconds
+                kotlinx.coroutines.delay(60000) // Check every 30 seconds
             }
         }
     }
