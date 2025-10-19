@@ -23,6 +23,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.android.bakchodai.data.model.Conversation
+import com.android.bakchodai.data.model.User
+import com.google.firebase.Firebase
+import com.google.firebase.auth.auth
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -30,11 +33,26 @@ import java.util.Locale
 @Composable
 fun ConversationListItem(
     conversation: Conversation,
+    users: List<User>,
     onConversationClick: (String) -> Unit
 ) {
     val lastMessage = conversation.messages.values.maxByOrNull { it.timestamp }
-    val placeholderIcon = if (conversation.group) Icons.Filled.Group else Icons.Filled.Person
-    val avatarUrl = "https://ui-avatars.com/api/?name=${conversation.name.replace(" ", "+")}&background=random"
+    val currentUserId = Firebase.auth.currentUser?.uid
+    val (avatarUrl, placeholderIcon) = if (conversation.group) {
+        // It's a group, generate avatar from group name
+        Pair(
+            "https://ui-avatars.com/api/?name=${conversation.name.replace(" ", "+")}&background=random",
+            Icons.Filled.Group
+        )
+    } else {
+        // It's 1-on-1, find the other user and use their avatar
+        val otherUserId = conversation.participants.keys.firstOrNull { it != currentUserId }
+        val otherUser = users.find { it.uid == otherUserId }
+        Pair(
+            otherUser?.resolveAvatarUrl() ?: "https://ui-avatars.com/api/?name=?", // Use resolved URL
+            Icons.Filled.Person
+        )
+    }
     Row(
         modifier = Modifier
             .fillMaxWidth()

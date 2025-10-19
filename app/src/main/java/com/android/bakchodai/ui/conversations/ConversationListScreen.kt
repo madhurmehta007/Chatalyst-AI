@@ -14,12 +14,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.android.bakchodai.data.model.Conversation
+import com.android.bakchodai.data.model.User
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ConversationListScreen(
     conversations: List<Conversation>,
     onConversationClick: (String) -> Unit,
+    users: List<User>,
     isLoading: Boolean,
 ) {
     if (isLoading) {
@@ -35,6 +37,7 @@ fun ConversationListScreen(
             items(conversations) { conversation ->
                 ConversationListItem(
                     conversation = conversation,
+                    users = users,
                     onConversationClick = onConversationClick
                 )
             }

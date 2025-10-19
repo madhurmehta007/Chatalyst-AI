@@ -1,3 +1,4 @@
+// file: bakchodai/ui/newchat/NewChatScreen.kt
 package com.android.bakchodai.ui.newchat
 
 import androidx.compose.foundation.background
@@ -15,6 +16,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
@@ -35,7 +37,7 @@ fun NewChatScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("New Chat") },
+                title = { Text("Select AI Character") }, // Updated title
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
@@ -43,7 +45,6 @@ fun NewChatScreen(
                 }
             )
         },
-        // *** ADDED: Floating Action Button ***
         floatingActionButton = {
             FloatingActionButton(onClick = onAddAiClick) {
                 Icon(Icons.Default.Add, contentDescription = "Add AI Character")
@@ -68,14 +69,15 @@ fun NewChatScreen(
             ) {
                 Text("No AI characters found.\nTap '+' to add one!", modifier = Modifier.padding(16.dp))
             }
-        }
-        else {
+        } else {
             LazyColumn(modifier = Modifier.padding(paddingValues)) {
                 items(users) { user ->
                     UserListItem(
                         user = user,
                         onUserClick = onUserClick
                     )
+                    // Add divider, indented past the avatar
+                    Divider(modifier = Modifier.padding(top = 8.dp, bottom = 8.dp, start = 88.dp))
                 }
             }
         }
@@ -94,7 +96,7 @@ private fun UserListItem(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onUserClick(user) }
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .padding(horizontal = 16.dp, vertical = 12.dp), // Increased vertical padding
         verticalAlignment = Alignment.CenterVertically
     ) {
         AsyncImage(
@@ -111,10 +113,21 @@ private fun UserListItem(
 
         Spacer(Modifier.width(16.dp))
 
-        Text(
-            text = user.name,
-            fontWeight = FontWeight.Bold,
-            fontSize = 17.sp
-        )
+        // Updated text styling
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = user.name,
+                fontWeight = FontWeight.SemiBold, // Slightly bolder
+                fontSize = 17.sp,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = user.personality.ifBlank { "AI Character" }, // Show personality
+                fontWeight = FontWeight.Normal,
+                fontSize = 14.sp,
+                color = Color.Gray
+            )
+        }
     }
 }

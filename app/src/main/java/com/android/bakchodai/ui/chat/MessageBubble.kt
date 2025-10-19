@@ -58,37 +58,36 @@ fun MessageBubble(
     onLongPress: () -> Unit, // For selection
     onEmojiReact: (String) -> Unit
 ) {
-    // --- Bubble ---
     val bubbleShape = if (isFromMe) {
         RoundedCornerShape(topStart = 16.dp, bottomStart = 16.dp, topEnd = 16.dp, bottomEnd = 4.dp)
     } else {
         RoundedCornerShape(topStart = 16.dp, bottomStart = 4.dp, topEnd = 16.dp, bottomEnd = 16.dp)
     }
     val bubbleColor = if (isFromMe) {
-        if (androidx.compose.foundation.isSystemInDarkTheme()) WhatsAppDarkSentBubble else WhatsAppSentBubble
+        MaterialTheme.colorScheme.tertiary // Use theme-defined "sent" color
     } else {
-        MaterialTheme.colorScheme.surfaceVariant
+        MaterialTheme.colorScheme.surfaceVariant // Use theme-defined "received" color
     }
-    val textColor = MaterialTheme.colorScheme.onSurfaceVariant
 
-    // --- State ---
+    val textColor = if (isFromMe) {
+        MaterialTheme.colorScheme.onSecondaryContainer // Text for "sent" bubble
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant // Text for "received" bubble
+    }
+
     var showEmojiPicker by remember { mutableStateOf(false) }
 
-    // --- Selection Highlight ---
     val selectionColor = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) else Color.Transparent
 
-    // --- Main Layout ---
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .background(selectionColor) // Apply selection highlight
             .padding(horizontal = 8.dp, vertical = 2.dp),
         verticalAlignment = Alignment.Bottom,
-        // *** THE FIX IS HERE: Inlined the logic directly ***
         horizontalArrangement = if (isFromMe) Arrangement.End else Arrangement.Start
     ) {
 
-        // *** 1. Profile Icon (for incoming) ***
         if (!isFromMe) {
             AsyncImage(
                 model = sender.resolveAvatarUrl(),
@@ -104,13 +103,11 @@ fun MessageBubble(
             Spacer(modifier = Modifier.width(8.dp))
         }
 
-        // --- 2. Bubble + Reactions Column ---
         Column(horizontalAlignment = if (isFromMe) Alignment.End else Alignment.Start) {
 
             var isDropdownExpanded by remember { mutableStateOf(false) } // Moved here
 
             Box {
-                // This is the "anchor" for the menu
                 Box(
                     modifier = Modifier
                         .widthIn(max = 300.dp) // Constrain max width
@@ -161,16 +158,10 @@ fun MessageBubble(
                     }
                 }
 
-                // --- The actual menu ---
-                // This was giving a "Composable invocations can only happen..." error
-                // because it was inside a non-composable lambda.
-                // It is now correctly placed inside the Box's content scope.
                 DropdownMenu(
                     expanded = isDropdownExpanded,
                     onDismissRequest = { isDropdownExpanded = false }
                 ) {
-                    // This is a placeholder as the long-press is now for selection.
-                    // You could add a "Copy" action here.
                     DropdownMenuItem(
                         text = { Text("Copy") },
                         onClick = { isDropdownExpanded = false }
@@ -179,7 +170,6 @@ fun MessageBubble(
             } // End Box
 
 
-            // --- 4. Emoji Reactions ---
             if (message.reactions.isNotEmpty()) {
                 val groupedReactions = message.reactions.values.groupingBy { it }.eachCount()
                 Row(modifier = Modifier.padding(top = 4.dp, start = 4.dp, end = 4.dp)) {

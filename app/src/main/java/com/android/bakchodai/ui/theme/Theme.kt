@@ -1,3 +1,4 @@
+// file: bakchodai/ui/theme/Theme.kt
 package com.android.bakchodai.ui.theme
 
 import android.app.Activity
@@ -17,24 +18,25 @@ import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
 private val DarkColorScheme = darkColorScheme(
-    primary = WhatsAppLightGreen,
+    primary = WhatsAppGreen,
     secondary = WhatsAppTeal,
-    tertiary = WhatsAppTeal,
+    tertiary = WhatsAppDarkSentBubble,
     background = WhatsAppDarkBackground,
     surface = WhatsAppDarkSurface,
-    onPrimary = Color.White,
-    onSecondary = Color.White,
+    onPrimary = Color.White, // Text on app bar
+    onSecondary = Color.White, // Text on FAB
     onTertiary = Color.White,
     onBackground = Color.White.copy(alpha = 0.9f),
     onSurface = Color.White.copy(alpha = 0.9f),
-    surfaceVariant = WhatsAppDarkSurface,
-    onSurfaceVariant = Color.White.copy(alpha = 0.8f)
+    surfaceVariant = WhatsAppDarkSurface, // Other user's bubble
+    onSurfaceVariant = Color.White.copy(alpha = 0.8f), // Text on other user's bubble,
+    tertiaryContainer = WhatsAppDarkChatBackground
 )
 
 private val LightColorScheme = lightColorScheme(
     primary = WhatsAppGreen,
     secondary = WhatsAppLightGreen,
-    tertiary = WhatsAppTeal,
+    tertiary = WhatsAppSentBubble,
     background = Color.White,
     surface = Color.White,
     onPrimary = Color.White,
@@ -43,7 +45,8 @@ private val LightColorScheme = lightColorScheme(
     onBackground = Color.Black,
     onSurface = Color.Black,
     surfaceVariant = Color(0xFFF0F0F0), // Light grey for "other" bubble
-    onSurfaceVariant = Color.Black
+    onSurfaceVariant = Color.Black,
+    tertiaryContainer = WhatsAppChatBackground
 )
 
 @Composable
@@ -67,7 +70,8 @@ fun BakchodAITheme(
         SideEffect {
             val window = (view.context as Activity).window
             window.statusBarColor = colorScheme.primary.toArgb() // Set status bar color
-            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = darkTheme
+            // Use isAppearanceLightStatusBars = !darkTheme (light text on dark bar, dark text on light bar)
+            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
         }
     }
 

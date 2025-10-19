@@ -1,16 +1,20 @@
 package com.android.bakchodai.ui.auth
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.android.bakchodai.R // Make sure R is imported
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoginScreen(
     isLoading: Boolean,
@@ -23,54 +27,80 @@ fun LoginScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp), // Add padding to the box
+            .padding(16.dp),
         contentAlignment = Alignment.Center
     ) {
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 24.dp, vertical = 32.dp),
+            verticalArrangement = Arrangement.SpaceBetween, // Pushes items apart
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Column(
-                modifier = Modifier.padding(24.dp), // Padding inside the card
-                verticalArrangement = Arrangement.Center,
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Image( // Add App Icon
-                    // *** THE FIX IS HERE ***
-                    painter = painterResource(id = R.drawable.ic_launcher_foreground), // Changed from mipmap
+            // --- Top Section ---
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Image(
+                    painter = painterResource(id = R.drawable.app_icon),
                     contentDescription = "App Logo",
-                    modifier = Modifier.size(80.dp)
+                    modifier = Modifier.size(120.dp).background(Color.White)
                 )
                 Spacer(modifier = Modifier.height(16.dp))
-                Text("Login", style = MaterialTheme.typography.headlineLarge)
-                Spacer(modifier = Modifier.height(24.dp))
-                OutlinedTextField(
+                Text(
+                    "Welcome to Bakchod AI",
+                    style = MaterialTheme.typography.headlineMedium,
+                    textAlign = TextAlign.Center
+                )
+            }
+
+            // --- Middle Section (Inputs) ---
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                TextField(
                     value = email,
                     onValueChange = { email = it },
                     label = { Text("Email") },
                     enabled = !isLoading,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = Color.Transparent,
+                        unfocusedContainerColor = Color.Transparent,
+                        disabledContainerColor = Color.Transparent,
+                        focusedIndicatorColor = MaterialTheme.colorScheme.primary,
+                        unfocusedIndicatorColor = Color.Gray
+                    ),
+                    singleLine = true
                 )
-                Spacer(modifier = Modifier.height(8.dp))
-                OutlinedTextField(
+                Spacer(modifier = Modifier.height(16.dp))
+                TextField(
                     value = password,
                     onValueChange = { password = it },
                     label = { Text("Password") },
                     visualTransformation = PasswordVisualTransformation(),
                     enabled = !isLoading,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = Color.Transparent,
+                        unfocusedContainerColor = Color.Transparent,
+                        disabledContainerColor = Color.Transparent,
+                        focusedIndicatorColor = MaterialTheme.colorScheme.primary,
+                        unfocusedIndicatorColor = Color.Gray
+                    ),
+                    singleLine = true
                 )
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(32.dp))
                 Button(
                     onClick = { onLoginClick(email, password) },
                     enabled = !isLoading,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp)
                 ) {
                     Text("Login")
                 }
-                TextButton(onClick = onSignUpClick, enabled = !isLoading) {
-                    Text("Don't have an account? Sign Up")
-                }
+            }
+
+            // --- Bottom Section ---
+            TextButton(onClick = onSignUpClick, enabled = !isLoading) {
+                Text("Don't have an account? Sign Up")
             }
         }
 

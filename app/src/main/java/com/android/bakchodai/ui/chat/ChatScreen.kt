@@ -120,10 +120,7 @@ fun ChatScreen(
         },
         modifier = Modifier.fillMaxSize()
     ) { paddingValues ->
-        val chatBgColor = if (androidx.compose.foundation.isSystemInDarkTheme())
-            WhatsAppDarkChatBackground
-        else
-            WhatsAppChatBackground
+        val chatBgColor = MaterialTheme.colorScheme.tertiaryContainer
 
         Column(
             modifier = Modifier

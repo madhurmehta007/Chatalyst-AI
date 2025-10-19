@@ -1,3 +1,4 @@
+// file: bakchodai/ui/main/MainScreen.kt
 package com.android.bakchodai.ui.main
 
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -27,23 +28,22 @@ fun MainScreen(
     onConversationClick: (String) -> Unit,
     onNewChatClick: () -> Unit,
     onNewGroupClick: () -> Unit,
-    onProfileClick: () -> Unit // <-- New parameter
+    onProfileClick: () -> Unit
 ) {
     val conversations by mainViewModel.conversations.collectAsState()
+    val users by mainViewModel.users.collectAsState() // *** ADDED: Get users list ***
     val isLoading by mainViewModel.isLoading.collectAsState()
 
     val pagerState = rememberPagerState(pageCount = { 2 })
     val scope = rememberCoroutineScope()
     val tabs = listOf("Chats", "Groups")
 
-    // --- NO MORE NavHost or rememberNavController() HERE ---
-
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("Bakchod AI", fontWeight = FontWeight.Bold) },
                 actions = {
-                    IconButton(onClick = onProfileClick) { // <-- Use the new lambda
+                    IconButton(onClick = onProfileClick) {
                         Icon(Icons.Default.AccountCircle, contentDescription = "Profile", tint = Color.White)
                     }
                 },
@@ -93,12 +93,14 @@ fun MainScreen(
                 when (page) {
                     0 -> ConversationListScreen(
                         conversations = conversations.filter { !it.group },
-                        onConversationClick = onConversationClick, // This will now work
+                        users = users, // *** ADDED: Pass users list ***
+                        onConversationClick = onConversationClick,
                         isLoading = isLoading
                     )
                     1 -> ConversationListScreen(
                         conversations = conversations.filter { it.group },
-                        onConversationClick = onConversationClick, // This will now work
+                        users = users, // *** ADDED: Pass users list ***
+                        onConversationClick = onConversationClick,
                         isLoading = isLoading
                     )
                 }
