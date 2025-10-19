@@ -23,7 +23,7 @@ data class User(
             } catch (e: Exception) {
                 name // Fallback to raw name if encoding fails
             }
-            "https://ui-avatars.com/api/?name=${encodedName}&background=random"
+            "https://api.dicebear.com/7.x/avataaars/avif?seed=${encodedName}"
         }
     }
 }

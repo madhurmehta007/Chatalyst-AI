@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.net.URLEncoder
 import java.util.UUID
 import javax.inject.Inject
 
@@ -43,14 +44,18 @@ class AddAiCharacterViewModel @Inject constructor(private val repository: Conver
             _addSuccess.value = false
             try {
                 val aiUid = "ai_${name.trim().lowercase().replace("\\s+".toRegex(), "_")}_${UUID.randomUUID().toString().substring(0, 4)}"
-                val avatarUrl = "https://ui-avatars.com/api/?name=${name.replace(" ", "+")}&background=random"
+                val encodedName = try {
+                    URLEncoder.encode(name.trim(), "UTF-8")
+                } catch (e: Exception) {
+                    name.trim()
+                }
+                val avatarUrl = "https://api.dicebear.com/7.x/avataaars/avif?seed=${encodedName}"
 
                 val newAiUser = User(
                     uid = aiUid,
                     name = name.trim(),
                     personality = personality.trim(), // Short summary
                     avatarUrl = avatarUrl,
-                    // Save new fields
                     backgroundStory = background.trim(),
                     interests = interests.trim(), // Can be blank
                     speakingStyle = style.trim()

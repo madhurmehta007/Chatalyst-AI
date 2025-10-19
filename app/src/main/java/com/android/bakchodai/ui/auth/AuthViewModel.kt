@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import java.net.URLEncoder
 import javax.inject.Inject
 
 /**
@@ -132,8 +133,12 @@ class AuthViewModel @Inject constructor(private val repository: ConversationRepo
                     // Reload the user to get the updated displayName.
                     firebaseUser.reload().await()
 
-                    // *** ADDED: Generate and save profile picture URL ***
-                    val avatarUrl = "https://ui-avatars.com/api/?name=${name.replace(" ", "+")}&background=random"
+                    val encodedName = try {
+                        URLEncoder.encode(name, "UTF-8")
+                    } catch (e: Exception) {
+                        name
+                    }
+                    val avatarUrl = "https://api.dicebear.com/7.x/avataaars/avif?seed=${encodedName}"
 
                     // Add the user to our application's database.
                     val newUser = User(
