@@ -25,4 +25,6 @@ interface ConversationRepository {
     suspend fun deleteGroup(conversationId: String)
 
     suspend fun updateGroupDetails(conversationId: String, newName: String, newTopic: String)
+
+    suspend fun clearAllLocalData()
 }

@@ -320,4 +320,7 @@ class FirebaseConversationRepository : ConversationRepository {
             throw e
         }
     }
+
+    override suspend fun clearAllLocalData() {
+    }
 }

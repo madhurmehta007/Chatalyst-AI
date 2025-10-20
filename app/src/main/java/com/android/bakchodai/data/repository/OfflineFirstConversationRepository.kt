@@ -1,6 +1,7 @@
 package com.android.bakchodai.data.repository
 
 import android.util.Log
+import android.widget.Toast
 import com.android.bakchodai.data.local.ConversationDao
 import com.android.bakchodai.data.local.ConversationEntity
 import com.android.bakchodai.data.local.UserDao
@@ -336,7 +337,18 @@ class OfflineFirstConversationRepository @Inject constructor(
         }
     }
 
-    // --- Mapper functions ---
+    override suspend fun clearAllLocalData() {
+        scope.launch {
+            try {
+                userDao.clearAll()
+                conversationDao.clearAll()
+                Log.d("Repo", "Cleared all local user and conversation data from Room.")
+            } catch (e: Exception) {
+                Log.e("Repo", "Error clearing local data", e)
+            }
+        }.join()
+    }
+
     private fun User.toEntity() = UserEntity(
         uid, name, avatarUrl, personality,
         // Add new fields

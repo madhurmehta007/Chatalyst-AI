@@ -17,6 +17,9 @@ interface UserDao {
     // *** ADDED: Suspend function for one-time fetch ***
     @Query("SELECT * FROM users")
     suspend fun getAllUsersSuspend(): List<UserEntity>
+
+    @Query("DELETE FROM users")
+    suspend fun clearAll()
 }
 
 @Dao
@@ -39,4 +42,7 @@ interface ConversationDao {
 
     @Query("SELECT * FROM conversations WHERE id = :id")
     suspend fun getConversationByIdSuspend(id: String): ConversationEntity?
+
+    @Query("DELETE FROM conversations")
+    suspend fun clearAll()
 }

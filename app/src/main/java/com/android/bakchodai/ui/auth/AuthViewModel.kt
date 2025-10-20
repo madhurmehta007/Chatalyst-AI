@@ -7,13 +7,19 @@ import androidx.lifecycle.viewModelScope
 import com.android.bakchodai.data.model.User
 import com.android.bakchodai.data.repository.ConversationRepository
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
+import com.google.firebase.auth.FirebaseAuthInvalidUserException
+import com.google.firebase.auth.FirebaseAuthUserCollisionException
+import com.google.firebase.auth.FirebaseAuthWeakPasswordException
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.auth.ktx.userProfileChangeRequest
 import com.google.firebase.ktx.Firebase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
@@ -57,6 +63,9 @@ class AuthViewModel @Inject constructor(private val repository: ConversationRepo
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
+    private val _errorEvent = MutableSharedFlow<String>()
+    val errorEvent = _errorEvent.asSharedFlow()
+
     // Flag to prevent the AuthStateListener from causing a race condition during login/signup.
     private var isProcessingAuthAction = false
 
@@ -90,17 +99,22 @@ class AuthViewModel @Inject constructor(private val repository: ConversationRepo
             isProcessingAuthAction = true
             _isLoading.value = true
             try {
-                // Await the completion of the sign-in task.
                 val result = auth.signInWithEmailAndPassword(email, password).await()
                 result.user?.let { firebaseUser ->
-                    // Authentication token is now ready and propagated.
                     _user.value = firebaseUser
-                    // Explicitly set the state here, now that the auth token is ready.
                     _authState.value = AuthState.LOGGED_IN
                 }
             } catch (e: Exception) {
-                // TODO: Handle login error (e.g., show a toast message).
-                // Log.e("AuthViewModel", "Login failed", e)
+                // ... (error handling remains the same) ...
+                when (e) {
+                    is FirebaseAuthInvalidUserException,
+                    is FirebaseAuthInvalidCredentialsException -> {
+                        _errorEvent.emit("Invalid email or password")
+                    }
+                    else -> {
+                        _errorEvent.emit("Login failed. Please try again.")
+                    }
+                }
                 _authState.value = AuthState.LOGGED_OUT
             } finally {
                 _isLoading.value = false
@@ -121,16 +135,14 @@ class AuthViewModel @Inject constructor(private val repository: ConversationRepo
             isProcessingAuthAction = true
             _isLoading.value = true
             try {
-                // Await the creation of the user in Firebase Auth.
                 val result = auth.createUserWithEmailAndPassword(email, password).await()
                 result.user?.let { firebaseUser ->
-                    // Update Firebase Auth user profile with display name.
+
                     val profileUpdates = userProfileChangeRequest {
                         displayName = name
                     }
                     firebaseUser.updateProfile(profileUpdates).await()
 
-                    // Reload the user to get the updated displayName.
                     firebaseUser.reload().await()
 
                     val encodedName = try {
@@ -140,21 +152,29 @@ class AuthViewModel @Inject constructor(private val repository: ConversationRepo
                     }
                     val avatarUrl = "https://api.dicebear.com/7.x/avataaars/avif?seed=${encodedName}"
 
-                    // Add the user to our application's database.
                     val newUser = User(
                         uid = firebaseUser.uid,
                         name = name,
-                        avatarUrl = avatarUrl // Save the URL
+                        avatarUrl = avatarUrl
                     )
-                    repository.addUser(newUser) // Suspend function called safely in coroutine.
+                    repository.addUser(newUser)
 
-                    // Authentication token and user data are now ready.
-                    _user.value = firebaseUser
-                    // Explicitly set the state here.
+                    _user.value = firebaseUser // Set the reloaded user
                     _authState.value = AuthState.LOGGED_IN
                 }
             } catch (e: Exception) {
-                // ... (catch block)
+                // ... (error handling remains the same) ...
+                when (e) {
+                    is FirebaseAuthUserCollisionException -> {
+                        _errorEvent.emit("User account already exists")
+                    }
+                    is FirebaseAuthWeakPasswordException -> {
+                        _errorEvent.emit("Password is too weak. Please use at least 6 characters.")
+                    }
+                    else -> {
+                        _errorEvent.emit("Sign up failed. Please try again.")
+                    }
+                }
             } finally {
                 _isLoading.value = false
                 isProcessingAuthAction = false
@@ -166,7 +186,10 @@ class AuthViewModel @Inject constructor(private val repository: ConversationRepo
      * Logs out the current user from Firebase Authentication.
      */
     fun logout() {
-        auth.signOut()
+        viewModelScope.launch {
+            repository.clearAllLocalData()
+            auth.signOut()
+        }
     }
 
     /**
@@ -184,8 +207,7 @@ class AuthViewModel @Inject constructor(private val repository: ConversationRepo
                 firebaseUser.updateProfile(profileUpdates).await() // Update in Firebase Auth.
                 repository.updateUserName(firebaseUser.uid, newName) // Update in application database.
             } catch (e: Exception) {
-                // TODO: Handle error during username update.
-                // Log.e("AuthViewModel", "Failed to update user name", e)
+                _errorEvent.emit("Failed to update name. Please try again.")
             }
         }
     }
