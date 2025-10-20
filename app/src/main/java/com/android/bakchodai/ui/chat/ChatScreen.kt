@@ -48,8 +48,6 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.android.bakchodai.data.model.Conversation
 import com.android.bakchodai.data.model.User
-import com.android.bakchodai.ui.theme.WhatsAppChatBackground
-import com.android.bakchodai.ui.theme.WhatsAppDarkChatBackground
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.ktx.Firebase
 import kotlinx.coroutines.delay

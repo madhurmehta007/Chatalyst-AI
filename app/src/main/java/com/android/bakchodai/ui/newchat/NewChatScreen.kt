@@ -46,7 +46,9 @@ fun NewChatScreen(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = onAddAiClick) {
+            FloatingActionButton(onClick = onAddAiClick,
+                containerColor = MaterialTheme.colorScheme.secondary
+            ) {
                 Icon(Icons.Default.Add, contentDescription = "Add AI Character")
             }
         }
