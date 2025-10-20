@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 
 @HiltViewModel
@@ -134,11 +135,21 @@ class ChatViewModel @Inject constructor(
         viewModelScope.launch {
             val ref = Firebase.database.reference
                 .child("conversations/$conversationId/messages/$messageId/reactions/${currentUser.uid}")
-            ref.setValue(emoji)
+
+            try {
+                val snapshot = ref.get().await()
+                val currentEmoji = snapshot.getValue(String::class.java)
+
+                if (currentEmoji == emoji) {
+                    ref.removeValue().await()
+                } else {
+                    ref.setValue(emoji).await()
+                }
+            } catch (e: Exception) {
+                Log.e("ChatViewModel", "Failed to update emoji reaction", e)
+            }
         }
     }
-
-    // --- New Functions ---
 
     fun editMessage(conversationId: String, messageId: String, newText: String) {
         viewModelScope.launch {
