@@ -1,9 +1,28 @@
 package com.android.bakchodai.ui.auth
 
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.layout.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -11,7 +30,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.android.bakchodai.R // Make sure R is imported
+import com.android.bakchodai.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -37,7 +56,6 @@ fun SignUpScreen(
             verticalArrangement = Arrangement.SpaceBetween,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // --- Top Section ---
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Image(
                     painter = painterResource(id = R.drawable.app_icon),
@@ -52,7 +70,6 @@ fun SignUpScreen(
                 )
             }
 
-            // --- Middle Section (Inputs) ---
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 TextField(
                     value = name,
@@ -65,7 +82,8 @@ fun SignUpScreen(
                         unfocusedContainerColor = Color.Transparent,
                         disabledContainerColor = Color.Transparent,
                         focusedIndicatorColor = MaterialTheme.colorScheme.primary,
-                        unfocusedIndicatorColor = Color.Gray
+                        // CHANGED: Use theme color
+                        unfocusedIndicatorColor = MaterialTheme.colorScheme.outline
                     ),
                     singleLine = true
                 )
@@ -81,7 +99,7 @@ fun SignUpScreen(
                         unfocusedContainerColor = Color.Transparent,
                         disabledContainerColor = Color.Transparent,
                         focusedIndicatorColor = MaterialTheme.colorScheme.primary,
-                        unfocusedIndicatorColor = Color.Gray
+                        unfocusedIndicatorColor = MaterialTheme.colorScheme.outline
                     ),
                     singleLine = true
                 )
@@ -98,7 +116,7 @@ fun SignUpScreen(
                         unfocusedContainerColor = Color.Transparent,
                         disabledContainerColor = Color.Transparent,
                         focusedIndicatorColor = MaterialTheme.colorScheme.primary,
-                        unfocusedIndicatorColor = Color.Gray
+                        unfocusedIndicatorColor = MaterialTheme.colorScheme.outline
                     ),
                     singleLine = true
                 )
@@ -114,7 +132,6 @@ fun SignUpScreen(
                 }
             }
 
-            // --- Bottom Section ---
             TextButton(onClick = onBackToLoginClick, enabled = !isLoading) {
                 Text("Already have an account? Log In")
             }

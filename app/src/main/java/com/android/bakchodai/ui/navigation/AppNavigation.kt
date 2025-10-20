@@ -79,10 +79,7 @@ fun AppNavigation() {
 
                 composable("profile") {
                     val mainViewModel: MainViewModel = hiltViewModel()
-                    val currentUser by authViewModel.user.collectAsState()
-                    val users by mainViewModel.users.collectAsState()
-                    val user = users.find { it.uid == currentUser?.uid }
-                        ?: User(uid = currentUser?.uid ?: "", name = currentUser?.displayName ?: "")
+                    val user by mainViewModel.currentUser.collectAsState()
 
                     Scaffold(
                         topBar = {
@@ -97,7 +94,7 @@ fun AppNavigation() {
                         }
                     ) { paddingValues ->
                         ProfileScreen(
-                            user = user, // Pass the full user object
+                            user = user,
                             onSaveClick = { newName -> authViewModel.updateUserName(newName) },
                             onLogoutClick = { authViewModel.logout() },
                             modifier = Modifier.padding(paddingValues)

@@ -27,8 +27,11 @@ class MainViewModel @Inject constructor(private val repository: ConversationRepo
     private val _conversations = MutableStateFlow<List<Conversation>>(emptyList())
     val conversations: StateFlow<List<Conversation>> = _conversations
 
-    private val _users = MutableStateFlow<List<User>>(emptyList())
-    val users: StateFlow<List<User>> = _users.asStateFlow()
+    private val _otherUsers = MutableStateFlow<List<User>>(emptyList())
+    val otherUsers: StateFlow<List<User>> = _otherUsers.asStateFlow()
+
+    private val _currentUser = MutableStateFlow<User?>(null)
+    val currentUser: StateFlow<User?> = _currentUser.asStateFlow()
 
     private val _isLoading = MutableStateFlow(true)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
@@ -59,14 +62,17 @@ class MainViewModel @Inject constructor(private val repository: ConversationRepo
         }
 
         viewModelScope.launch {
-            userIdFlow.combine(repository.getUsersFlow()) { userId, userList ->
+            userIdFlow.combine(repository.getUsersFlow()) { userId, allUsers ->
                 if (userId == null) {
-                    emptyList()
+                    Pair<User?, List<User>>(null, emptyList())
                 } else {
-                    userList.filter { it.uid != userId }
+                    val currentUser = allUsers.find { it.uid == userId }
+                    val otherUsers = allUsers.filter { it.uid != userId }
+                    Pair(currentUser, otherUsers)
                 }
-            }.collectLatest { filteredUsers ->
-                _users.value = filteredUsers
+            }.collectLatest { (currentUser, otherUsers) ->
+                _currentUser.value = currentUser
+                _otherUsers.value = otherUsers
             }
         }
     }
