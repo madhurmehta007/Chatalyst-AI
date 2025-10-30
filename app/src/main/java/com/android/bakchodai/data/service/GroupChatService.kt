@@ -77,73 +77,98 @@ class GroupChatService(
                             return@forEach // Skip to the next conversation
                         }
 
-                        // Decide if an AI should speak (only if chat is active)
+                        // --- START @MENTION LOGIC ---
+
+                        // Get all AI users *in this specific chat*
+                        val aiParticipantsInChat = currentUsers.filter {
+                            it.uid.startsWith("ai_") && conversation.participants.containsKey(it.uid)
+                        }
+                        if (aiParticipantsInChat.isEmpty()) return@forEach // No AIs in this chat
+
+                        // Check the last message for mentions
+                        var mentionedAi: User? = null
+                        if (lastMessage != null && lastMessage.senderId != "ai_rahul") { // TODO: ahem
+                            // Find the first AI mentioned in the last message
+                            mentionedAi = aiParticipantsInChat.firstOrNull { aiUser ->
+                                // Check for "@Rahul" or just "Rahul" (case-insensitive)
+                                lastMessage.content.contains(aiUser.name, ignoreCase = true)
+                            }
+                        }
+
+                        // --- DECIDE IF AI SHOULD SPEAK ---
                         val humanSpokeRecently = lastMessage != null && !lastMessage.senderId.startsWith("ai_")
-                        // Lower random chance to reduce chattiness in quiet groups
+                        val aiWasMentioned = mentionedAi != null
                         val randomChance = Random.nextFloat() < 0.5f // 50% chance if no human spoke
 
-                        val shouldAiSpeak = humanSpokeRecently || randomChance
+                        // AI should speak if:
+                        // 1. An AI was just mentioned (and it wasn't them who said it)
+                        // 2. A human just spoke
+                        // 3. Random chance hits
+                        val shouldAiSpeak = (aiWasMentioned && lastMessage?.senderId != mentionedAi?.uid) ||
+                                humanSpokeRecently ||
+                                randomChance
 
-                        Log.v("GroupChatService", "Conv ${conversation.id}: Should AI speak? $shouldAiSpeak (Human spoke recently: $humanSpokeRecently, Random chance: $randomChance, Inactive: $isChatInactive)")
+                        Log.v("GroupChatService", "Conv ${conversation.id}: Should AI speak? $shouldAiSpeak (Mentioned: $aiWasMentioned, Human spoke: $humanSpokeRecently, Random: $randomChance)")
 
                         if (shouldAiSpeak) {
-                            val aiParticipants = conversation.participants.keys.filter { it.startsWith("ai_") }
-                            if (aiParticipants.isNotEmpty()) {
+                            // Get ALL users in this specific chat from the collected list
+                            val participantIds = conversation.participants.keys
+                            val usersInThisChat = currentUsers.filter { it.uid in participantIds }
 
-                                // Get ALL users in this specific chat from the collected list
-                                val participantIds = conversation.participants.keys
-                                val usersInThisChat = currentUsers.filter { it.uid in participantIds }
+                            if (usersInThisChat.isEmpty()) {
+                                Log.w("GroupChatService", "User data is incomplete for conv ${conversation.id}. Skipping.")
+                                return@forEach
+                            }
 
-                                if (usersInThisChat.isEmpty() || usersInThisChat.size < participantIds.size) {
-                                    Log.w("GroupChatService", "User data might be incomplete for conv ${conversation.id}. Found ${usersInThisChat.size}/${participantIds.size} participants.")
-                                    // Continue if at least AI participants are found, otherwise skip
-                                    if (usersInThisChat.none { it.uid.startsWith("ai_") }) return@forEach
-                                }
+                            val speakingAiUid: String
 
-                                // Pick an AI that didn't speak last, if possible
+                            if (aiWasMentioned) {
+                                // A. If an AI was mentioned, THEY MUST SPEAK
+                                speakingAiUid = mentionedAi!!.uid // Not null due to check
+                                Log.d("GroupChatService", "Forcing response from mentioned AI: ${mentionedAi.name}")
+                            } else {
+                                // B. Otherwise, pick an AI that didn't speak last
+                                val aiParticipantIds = aiParticipantsInChat.map { it.uid }
                                 val potentialSpeakers = if (lastMessage?.senderId?.startsWith("ai_") == true) {
-                                    aiParticipants.filter { it != lastMessage.senderId }
+                                    aiParticipantIds.filter { it != lastMessage.senderId }
                                 } else {
-                                    aiParticipants
+                                    aiParticipantIds
                                 }
-                                // If filtering left no options (e.g., only one AI), fall back to the original list
-                                val speakingAiUid = potentialSpeakers.ifEmpty { aiParticipants }.random()
+                                speakingAiUid = potentialSpeakers.ifEmpty { aiParticipantIds }.random()
+                            }
 
-                                val speakingAiUser = usersInThisChat.find { it.uid == speakingAiUid }
-                                val personality = speakingAiUser?.personality ?: "" // Use found user's personality
-                                val history = conversation.messages.values.toList()
+                            // --- END @MENTION LOGIC ---
 
-                                Log.d("GroupChatService", "AI ${speakingAiUser?.name ?: speakingAiUid} speaking. Personality: '$personality'")
+                            val speakingAiUser = usersInThisChat.find { it.uid == speakingAiUid }
+                            val history = conversation.messages.values.toList()
 
-                                // --- MODIFIED: Typing Indicator Logic ---
-                                // 1. SET TYPING TO TRUE
-                                conversationRepository.setTypingIndicator(conversation.id, speakingAiUid, true)
+                            Log.d("GroupChatService", "AI ${speakingAiUser?.name ?: speakingAiUid} speaking.")
 
-                                val personalityForCall = speakingAiUser?.personality
-                                val response = aiService.generateGroupResponse(
-                                    history,
-                                    speakingAiUid,
-                                    conversation.topic,
-                                    usersInThisChat
+                            // 1. SET TYPING TO TRUE
+                            conversationRepository.setTypingIndicator(conversation.id, speakingAiUid, true)
+
+                            val response = aiService.generateGroupResponse(
+                                history,
+                                speakingAiUid,
+                                conversation.topic,
+                                usersInThisChat
+                            )
+
+                            // 2. SET TYPING TO FALSE (after response is generated)
+                            conversationRepository.setTypingIndicator(conversation.id, speakingAiUid, false)
+
+                            // Check response before saving
+                            if (response.isNotBlank() && response != "..." && !response.startsWith("Brain freeze") && !response.startsWith("Uh, pass")) {
+                                Log.d("GroupChatService", "AI ${speakingAiUser?.name ?: speakingAiUid} response: $response")
+                                val newMessage = Message(
+                                    senderId = speakingAiUid,
+                                    content = response, // Already cleaned by AiService
+                                    timestamp = System.currentTimeMillis()
                                 )
-
-                                // 2. SET TYPING TO FALSE (after response is generated)
-                                conversationRepository.setTypingIndicator(conversation.id, speakingAiUid, false)
-                                // --- End Modification ---
-
-                                // Check response before saving
-                                if (response.isNotBlank() && response != "..." && !response.startsWith("Brain freeze") && !response.startsWith("Uh, pass")) {
-                                    Log.d("GroupChatService", "AI ${speakingAiUser?.name ?: speakingAiUid} response: $response")
-                                    val newMessage = Message(
-                                        senderId = speakingAiUid,
-                                        content = response, // Already cleaned by AiService
-                                        timestamp = System.currentTimeMillis()
-                                    )
-                                    // Add message to Firebase (will sync back to Room via listener)
-                                    conversationRepository.addMessage(conversation.id, newMessage)
-                                } else {
-                                    Log.d("GroupChatService", "AI ${speakingAiUser?.name ?: speakingAiUid} generated blank/default/error response, skipping.")
-                                }
+                                // Add message to Firebase (will sync back to Room via listener)
+                                conversationRepository.addMessage(conversation.id, newMessage)
+                            } else {
+                                Log.d("GroupChatService", "AI ${speakingAiUser?.name ?: speakingAiUid} generated blank/default/error response, skipping.")
                             }
                         }
                     } // End conversations.forEach

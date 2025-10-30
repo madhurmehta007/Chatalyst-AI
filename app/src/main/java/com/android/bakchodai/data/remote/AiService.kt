@@ -25,6 +25,7 @@ class AiService @Inject constructor() {
 
     // Function for 1-to-1 responses
     suspend fun getResponse(chatHistory: List<Message>): String = withContext(Dispatchers.IO) {
+        // ... (this function remains unchanged) ...
         val systemPrompt = "You are a helpful chat assistant. Do not use markdown formatting like asterisks."
         // Create a model instance specifically for this prompt if needed, or use the base one
         val model = GenerativeModel(
@@ -53,7 +54,7 @@ class AiService @Inject constructor() {
         history: List<Message>,
         speakingAiUid: String,
         topic: String,
-        allUsersInChat: List<User> // <-- Pass the list of all users in this chat
+        allUsersInChat: List<User> // <-- Pass the list of all users
     ): String = withContext(Dispatchers.IO) {
         val speakingAiUser = allUsersInChat.find { it.uid == speakingAiUid }
         if (speakingAiUser == null) {
@@ -75,17 +76,31 @@ Your character details:
         val memberNames = allUsersInChat.joinToString { it.name }
         val exampleHumanName = allUsersInChat.firstOrNull { !it.uid.startsWith("ai_") }?.name ?: "HumanUser"
 
+        // --- MODIFIED SYSTEM PROMPT ---
         val systemPrompt = """
 $personaDescription
 
 You are in a group chat with: $memberNames.
 The current topic (if any): $topic
 Your goal is to participate naturally in the conversation based on your persona.
-Keep responses short, 1-3 sentences, casual, funny, chaotic (as per your persona). Banter, roast, gossip, plan trips, IPL talk, life updates.
-IMPORTANT: Refer to other members by their NAME (e.g., "$exampleHumanName" or "Priya"), not their ID.
+
+*** MESSAGE LENGTH - CRITICAL RULE ***
+You MUST vary your response length. DO NOT write long paragraphs for every message.
+MOST of your messages should be very short (1-5 words), like a real text chat (e.g., "lol", "true", "wtf bhai", "scene kya hai?").
+You can also write 1-2 sentences.
+Only write a long message (3+ sentences) VERY RARELY, like if you are telling a specific story or explaining a detailed plan.
+Default to being short and casual.
+
+*** REACTING TO OTHERS ***
+To make the chat feel real, you MUST talk TO other people.
+Refer to other members by their NAME (e.g., "Priya" or "Rahul") or by "@mentioning" them (e.g., "@$exampleHumanName" or "@Rahul").
+For example: "@Rahul what's the scene for tonight?" or "Priya that's hilarious".
+
+*** FORMATTING ***
 IMPORTANT: Do NOT use any markdown formatting like **bold** or *italics*. Just plain text.
 IMPORTANT: Do NOT start your response with your own name (e.g., "$speakingAiName:"). Just write the message content like a real person would.
 """.trimIndent()
+        // --- END MODIFICATION ---
 
         // Create a map for easy name lookup during history construction
         val usersById = allUsersInChat.associateBy { it.uid }
@@ -117,7 +132,9 @@ IMPORTANT: Do NOT start your response with your own name (e.g., "$speakingAiName
                 requestOptions = RequestOptions(timeout = 60_000)
             )
             val response: GenerateContentResponse = modelWithSystem.generateContent(*historyContent.toTypedArray())
-            val cleanedText = cleanResponse(response.text?.take(200)) // Clean and limit length
+
+            val cleanedText = cleanResponse(response.text) // Clean but do NOT limit length
+
             Log.d("AiService", "Raw response: ${response.text}, Cleaned response: $cleanedText")
             // Return a placeholder like "..." if the response is blank after cleaning
             if (cleanedText.isBlank()) "..." else cleanedText
