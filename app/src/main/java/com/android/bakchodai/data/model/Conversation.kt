@@ -9,5 +9,6 @@ data class Conversation(
     val participants: Map<String, Boolean> = emptyMap(),
     val messages: Map<String, Message> = emptyMap(),
     val group: Boolean = false,
-    val topic: String = ""
+    val topic: String = "",
+    val typing: Map<String, Boolean> = emptyMap()
 )

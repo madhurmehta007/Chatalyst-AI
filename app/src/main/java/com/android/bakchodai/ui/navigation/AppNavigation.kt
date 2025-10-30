@@ -174,7 +174,7 @@ fun AppNavigation() {
 
                     val conversation by chatViewModel.conversation.collectAsState()
                     val users by chatViewModel.users.collectAsState()
-                    val isAiTyping by chatViewModel.isAiTyping.collectAsState()
+                    val typingUsers by chatViewModel.typingUsers.collectAsState()
                     val isLoading by chatViewModel.isLoading.collectAsState() // Get loading state
 
                     if (isLoading) {
@@ -196,7 +196,8 @@ fun AppNavigation() {
                         ChatScreen(
                             conversation = conversation!!,
                             users = users,
-                            isAiTyping = isAiTyping,
+                            isAiTyping = false,
+                            typingUsers = typingUsers,
                             onSendMessage = { message ->
                                 chatViewModel.sendMessage(conversationId, message)
                             },

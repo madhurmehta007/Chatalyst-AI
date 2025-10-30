@@ -115,6 +115,10 @@ class GroupChatService(
 
                                 Log.d("GroupChatService", "AI ${speakingAiUser?.name ?: speakingAiUid} speaking. Personality: '$personality'")
 
+                                // --- MODIFIED: Typing Indicator Logic ---
+                                // 1. SET TYPING TO TRUE
+                                conversationRepository.setTypingIndicator(conversation.id, speakingAiUid, true)
+
                                 val personalityForCall = speakingAiUser?.personality
                                 val response = aiService.generateGroupResponse(
                                     history,
@@ -122,6 +126,11 @@ class GroupChatService(
                                     conversation.topic,
                                     usersInThisChat
                                 )
+
+                                // 2. SET TYPING TO FALSE (after response is generated)
+                                conversationRepository.setTypingIndicator(conversation.id, speakingAiUid, false)
+                                // --- End Modification ---
+
                                 // Check response before saving
                                 if (response.isNotBlank() && response != "..." && !response.startsWith("Brain freeze") && !response.startsWith("Uh, pass")) {
                                     Log.d("GroupChatService", "AI ${speakingAiUser?.name ?: speakingAiUid} response: $response")

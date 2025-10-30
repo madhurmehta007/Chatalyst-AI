@@ -321,6 +321,20 @@ class FirebaseConversationRepository : ConversationRepository {
         }
     }
 
+    // NEW: Implement the typing indicator function
+    override suspend fun setTypingIndicator(conversationId: String, userId: String, isTyping: Boolean) {
+        val typingRef = database.child("conversations/$conversationId/typing/$userId")
+        try {
+            if (isTyping) {
+                typingRef.setValue(true).await()
+            } else {
+                typingRef.removeValue().await()
+            }
+        } catch (e: Exception) {
+            Log.e("Repo", "Failed to set typing indicator in Firebase", e)
+        }
+    }
+
     override suspend fun clearAllLocalData() {
     }
 }

@@ -23,12 +23,12 @@ data class ConversationEntity(
     @PrimaryKey val id: String,
     val name: String,
     val participants: Map<String, Boolean>,
-    val messages: Map<String, Message>, // Stored as JSON
+    val messages: Map<String, Message>,
     val isGroup: Boolean,
-    val topic: String
+    val topic: String,
+    val typing: Map<String, Boolean>
 )
 
-// A helper class for a full conversation with users
 data class ConversationWithUsers(
     val conversation: ConversationEntity,
     val userList: List<UserEntity>

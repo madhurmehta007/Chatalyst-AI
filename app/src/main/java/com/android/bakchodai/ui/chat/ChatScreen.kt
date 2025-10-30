@@ -35,6 +35,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -44,6 +45,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.android.bakchodai.data.model.Conversation
@@ -57,14 +59,16 @@ import kotlinx.coroutines.delay
 fun ChatScreen(
     conversation: Conversation,
     users: List<User>,
-    isAiTyping: Boolean,
+    isAiTyping: Boolean, // MODIFIED: This is now passed from the new ViewModel flow
     onSendMessage: (String) -> Unit,
     onEmojiReact: (String, String) -> Unit,
     onEditMessage: (String, String) -> Unit,
     onNavigateToEditGroup: () -> Unit,
     onDeleteMessage: (String) -> Unit,
     onDeleteGroup: () -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    // NEW: Receive the list of typing users
+    typingUsers: List<User>
 ) {
     val usersById = users.associateBy { it.uid }
     val currentUserId = Firebase.auth.currentUser?.uid
@@ -76,18 +80,7 @@ fun ChatScreen(
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showDeleteGroupDialog by remember { mutableStateOf(false) }
 
-    // --- Group typing simulation ---
-    var isGroupTyping by remember { mutableStateOf(false) }
-    LaunchedEffect(conversation.messages) {
-        if (conversation.group && conversation.participants.keys.any { it.startsWith("ai_") }) {
-            isGroupTyping = true
-            delay(2000)
-            isGroupTyping = false
-        }
-        if (conversation.messages.isNotEmpty()) {
-            listState.animateScrollToItem(0)
-        }
-    }
+    // --- REMOVED old group typing simulation ---
 
     // --- Back Press Handler ---
     // If in selection mode, pressing back cancels selection mode.
@@ -103,8 +96,7 @@ fun ChatScreen(
                     conversation = conversation,
                     usersById = usersById,
                     currentUserId = currentUserId,
-                    isGroupTyping = isGroupTyping,
-                    isAiTyping = isAiTyping,
+                    typingUsers = typingUsers, // MODIFIED: Pass new list
                     onBack = onBack,
                     onNavigateToEditGroup = onNavigateToEditGroup,
                     onShowDeleteGroupDialog = { showDeleteGroupDialog = true }
@@ -208,8 +200,7 @@ private fun NormalTopBar(
     conversation: Conversation,
     usersById: Map<String, User>,
     currentUserId: String?,
-    isGroupTyping: Boolean,
-    isAiTyping: Boolean,
+    typingUsers: List<User>, // MODIFIED: Receive list of users
     onNavigateToEditGroup: () -> Unit,
     onBack: () -> Unit,
     onShowDeleteGroupDialog: () -> Unit
@@ -234,19 +225,39 @@ private fun NormalTopBar(
                 Spacer(Modifier.width(12.dp))
 
                 Column {
-                    Text(conversation.name)
-                    val typingText = if (conversation.group) {
-                        if (isGroupTyping) "Typing..." else "${conversation.participants.size} members"
-                    } else {
-                        if (isAiTyping) "Typing..." else "Online"
+                    Text(
+                        text = conversation.name,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+
+                    // --- NEW TYPING LOGIC ---
+                    val typingText = when {
+                        typingUsers.isNotEmpty() -> {
+                            // If more than 2, show "several people..."
+                            if (typingUsers.size > 2) "several people are typing..."
+                            // Otherwise, join names: "Rahul and Priya are typing..."
+                            else typingUsers.joinToString(separator = " and ") { it.name } + if (typingUsers.size == 1) " is typing..." else " are typing..."
+                        }
+                        // Fallback logic
+                        conversation.group -> "${conversation.participants.size} members"
+                        else -> "Online" // "Online" for 1-on-1
                     }
-                    val typingColor = if (isGroupTyping || isAiTyping) Color.Gray else Color.Green
+
+                    val typingColor = if (typingUsers.isNotEmpty()) {
+                        MaterialTheme.colorScheme.primary // Use a distinct color for typing
+                    } else {
+                        Color.Gray // Default color for member count/online
+                    }
 
                     Text(
                         text = typingText,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = typingColor
+                        style = MaterialTheme.typography.labelMedium, // Slightly larger
+                        color = typingColor,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
+                    // --- END NEW TYPING LOGIC ---
                 }
             }
         },

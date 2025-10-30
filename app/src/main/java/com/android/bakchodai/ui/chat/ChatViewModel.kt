@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
@@ -32,12 +33,13 @@ class ChatViewModel @Inject constructor(
     private val _users = MutableStateFlow<List<User>>(emptyList())
     val users: StateFlow<List<User>> = _users
 
-    private val _isAiTyping = MutableStateFlow(false)
-    val isAiTyping: StateFlow<Boolean> = _isAiTyping.asStateFlow()
+    private val _typingUsers = MutableStateFlow<List<User>>(emptyList())
+    val typingUsers: StateFlow<List<User>> = _typingUsers.asStateFlow()
 
-    // *** ADDED: Loading state ***
     private val _isLoading = MutableStateFlow(true)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+
+    private val currentUserId = Firebase.auth.currentUser?.uid
 
     init {
         viewModelScope.launch {
@@ -45,27 +47,35 @@ class ChatViewModel @Inject constructor(
                 _users.value = userList
             }
         }
+
+        viewModelScope.launch {
+            conversation.combine(users) { conversation, userList ->
+                if (conversation == null) {
+                    emptyList<User>()
+                } else {
+                    val usersById = userList.associateBy { it.uid }
+                    conversation.typing.keys
+                        .filter { it != currentUserId }
+                        .mapNotNull { usersById[it] }
+                }
+            }.collectLatest { typingUserList ->
+                _typingUsers.value = typingUserList
+            }
+        }
     }
 
     fun loadConversation(conversationId: String) {
-        // Reset loading state when loading a *new* conversation
         _isLoading.value = true
         _conversation.value = null // Clear old conversation immediately
 
         viewModelScope.launch {
             repository.getConversationFlow(conversationId).collectLatest { conv ->
-                // Check if the latest message is from a human, if so, AI is done typing
-                val lastMessage = conv?.messages?.values?.maxByOrNull { it.timestamp }
-                if (lastMessage != null && !lastMessage.senderId.startsWith("ai_")) {
-                    _isAiTyping.value = false
-                }
                 _conversation.value = conv
                 // Only set loading false *after* the first emission, even if null
                 if (_isLoading.value) { // Avoid setting false repeatedly
                     _isLoading.value = false
                     Log.d("ChatViewModel", "Conversation $conversationId loaded (exists: ${conv != null})")
                 }
-
             }
         }
     }
@@ -79,23 +89,22 @@ class ChatViewModel @Inject constructor(
         )
 
         viewModelScope.launch {
-            // 1. Save the user's message (writes to Firebase only)
             repository.addMessage(conversationId, userMessage)
             Log.d("ChatViewModel", "User message sent to repo: ${userMessage.content}")
 
-            // 2. Check if this is a 1-to-1 AI chat using the current state
             val currentConvoState = _conversation.value
             val isOneToOneAiChat = currentConvoState != null && !currentConvoState.group && currentConvoState.participants.keys.any { it.startsWith("ai_") }
             Log.d("ChatViewModel", "Is 1-to-1 AI chat? $isOneToOneAiChat")
 
 
             if (isOneToOneAiChat) {
-                _isAiTyping.value = true
+                val aiParticipantId = currentConvoState!!.participants.keys.first { it.startsWith("ai_") }
+
                 Log.d("ChatViewModel", "AI typing started")
+                repository.setTypingIndicator(conversationId, aiParticipantId, true)
+
                 try {
-                    // *** FIX: Construct history reliably ***
-                    // Use the current message list from the state and add the new user message
-                    val currentMessages = currentConvoState?.messages?.values?.toList() ?: emptyList()
+                    val currentMessages = currentConvoState.messages.values.toList()
                     val historyForAI = (currentMessages + userMessage).sortedBy { it.timestamp } // Add new message and sort
 
                     Log.d("ChatViewModel", "History size for AI: ${historyForAI.size}, Last User Msg: ${userMessage.content}")
@@ -106,8 +115,6 @@ class ChatViewModel @Inject constructor(
 
                     // 5. Create and save the AI's message
                     if (aiResponseText.isNotBlank()) {
-                        // Use !! because isOneToOneAiChat check ensures convo is not null
-                        val aiParticipantId = currentConvoState!!.participants.keys.first { it.startsWith("ai_") }
                         val aiMessage = Message(
                             senderId = aiParticipantId,
                             content = aiResponseText,
@@ -123,7 +130,8 @@ class ChatViewModel @Inject constructor(
                     Log.e("ChatViewModel", "Error generating/sending AI response", e)
                 }
                 finally {
-                    _isAiTyping.value = false // Ensure typing indicator stops
+                    // MODIFIED: Ensure typing indicator stops
+                    repository.setTypingIndicator(conversationId, aiParticipantId, false)
                     Log.d("ChatViewModel", "AI typing stopped")
                 }
             }

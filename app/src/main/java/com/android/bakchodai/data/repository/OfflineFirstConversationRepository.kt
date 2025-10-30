@@ -73,7 +73,6 @@ class OfflineFirstConversationRepository @Inject constructor(
         })
     }
 
-    // Removed the old syncConversations() function
 
     // --- Flow-based methods ---
     override fun getConversationsFlow(): Flow<List<Conversation>> {
@@ -349,6 +348,19 @@ class OfflineFirstConversationRepository @Inject constructor(
         }.join()
     }
 
+    override suspend fun setTypingIndicator(conversationId: String, userId: String, isTyping: Boolean) {
+        val typingRef = database.child("conversations/$conversationId/typing/$userId")
+        try {
+            if (isTyping) {
+                typingRef.setValue(true).await()
+            } else {
+                typingRef.removeValue().await()
+            }
+        } catch (e: Exception) {
+            Log.e("Repo", "Failed to set typing indicator in Firebase", e)
+        }
+    }
+
     private fun User.toEntity() = UserEntity(
         uid, name, avatarUrl, personality,
         // Add new fields
@@ -359,6 +371,6 @@ class OfflineFirstConversationRepository @Inject constructor(
         // Add new fields
         backgroundStory, interests, speakingStyle
     )
-    private fun Conversation.toEntity() = ConversationEntity(id, name, participants, messages, group, topic)
-    private fun ConversationEntity.toModel() = Conversation(id, name, participants, messages, isGroup, topic)
+    private fun Conversation.toEntity() = ConversationEntity(id, name, participants, messages, group, topic, typing)
+    private fun ConversationEntity.toModel() = Conversation(id, name, participants, messages, isGroup, topic, typing)
 }

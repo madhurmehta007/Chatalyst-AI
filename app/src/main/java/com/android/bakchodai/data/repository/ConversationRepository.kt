@@ -27,4 +27,6 @@ interface ConversationRepository {
     suspend fun updateGroupDetails(conversationId: String, newName: String, newTopic: String)
 
     suspend fun clearAllLocalData()
+
+    suspend fun setTypingIndicator(conversationId: String, userId: String, isTyping: Boolean)
 }
