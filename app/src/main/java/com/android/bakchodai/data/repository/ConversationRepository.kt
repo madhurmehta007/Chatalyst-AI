@@ -29,4 +29,8 @@ interface ConversationRepository {
     suspend fun clearAllLocalData()
 
     suspend fun setTypingIndicator(conversationId: String, userId: String, isTyping: Boolean)
+
+    suspend fun updateUserPresence(uid: String, isOnline: Boolean)
+
+    fun setOfflineOnDisconnect(uid: String)
 }

@@ -361,15 +361,39 @@ class OfflineFirstConversationRepository @Inject constructor(
         }
     }
 
+    override suspend fun updateUserPresence(uid: String, isOnline: Boolean) {
+        val presenceUpdates = mutableMapOf<String, Any>(
+            "isOnline" to isOnline
+        )
+        if (!isOnline) {
+            presenceUpdates["lastSeen"] = System.currentTimeMillis()
+        }
+
+        try {
+            database.child("users").child(uid).updateChildren(presenceUpdates).await()
+            Log.d("Repo", "User presence updated for $uid: isOnline=$isOnline")
+        } catch (e: Exception) {
+            Log.e("Repo", "Failed to update user presence in Firebase", e)
+        }
+    }
+
+    override fun setOfflineOnDisconnect(uid: String) {
+        val presenceRef = database.child("users").child(uid)
+        presenceRef.child("isOnline").onDisconnect().setValue(false)
+        presenceRef.child("lastSeen").onDisconnect().setValue(System.currentTimeMillis())
+    }
+
     private fun User.toEntity() = UserEntity(
         uid, name, avatarUrl, personality,
         // Add new fields
-        backgroundStory, interests, speakingStyle
+        backgroundStory, interests, speakingStyle,
+        isOnline, lastSeen
     )
     private fun UserEntity.toModel() = User(
         uid, name, avatarUrl, personality,
         // Add new fields
-        backgroundStory, interests, speakingStyle
+        backgroundStory, interests, speakingStyle,
+        isOnline, lastSeen
     )
     private fun Conversation.toEntity() = ConversationEntity(id, name, participants, messages, group, topic, typing)
     private fun ConversationEntity.toModel() = Conversation(id, name, participants, messages, isGroup, topic, typing)

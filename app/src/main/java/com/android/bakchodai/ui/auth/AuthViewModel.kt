@@ -155,7 +155,9 @@ class AuthViewModel @Inject constructor(private val repository: ConversationRepo
                     val newUser = User(
                         uid = firebaseUser.uid,
                         name = name,
-                        avatarUrl = avatarUrl
+                        avatarUrl = avatarUrl,
+                        isOnline = true, // Set to online on creation
+                        lastSeen = System.currentTimeMillis() // Set timestamp
                     )
                     repository.addUser(newUser)
 

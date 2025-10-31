@@ -11,7 +11,9 @@ data class User(
     val personality: String = "",
     val backgroundStory: String = "",
     val interests: String = "",
-    val speakingStyle: String = ""
+    val speakingStyle: String = "",
+    val isOnline: Boolean = false,
+    val lastSeen: Long = 0L
 ){
     fun resolveAvatarUrl(): String {
         return if (!avatarUrl.isNullOrBlank()) {
