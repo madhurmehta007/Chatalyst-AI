@@ -31,6 +31,7 @@ android {
 
         // Expose the API key from local.properties
         buildConfigField("String", "GEMINI_API_KEY", "\"${localProperties.getProperty("GEMINI_API_KEY")}\"")
+        buildConfigField("String", "GIPHY_API_KEY", "\"${localProperties.getProperty("GIPHY_API_KEY")}\"")
     }
 
     buildTypes {
@@ -56,6 +57,7 @@ android {
     Properties().apply {
         load(FileInputStream(rootProject.file("local.properties")))
         android.defaultConfig.buildConfigField("String", "GEMINI_API_KEY", "\"${getProperty("GEMINI_API_KEY")}\"")
+        android.defaultConfig.buildConfigField("String", "GIPHY_API_KEY", "\"${getProperty("GIPHY_API_KEY")}\"")
     }
     kapt {
         correctErrorTypes = true

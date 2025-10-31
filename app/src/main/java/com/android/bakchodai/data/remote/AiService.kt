@@ -27,19 +27,16 @@ class AiService @Inject constructor() {
     suspend fun getResponse(chatHistory: List<Message>): String = withContext(Dispatchers.IO) {
         // ... (this function remains unchanged) ...
         val systemPrompt = "You are a helpful chat assistant. Do not use markdown formatting like asterisks."
-        // Create a model instance specifically for this prompt if needed, or use the base one
         val model = GenerativeModel(
             modelName = "gemini-2.5-flash",
             apiKey = BuildConfig.GEMINI_API_KEY,
-            systemInstruction = content { text(systemPrompt) } // Apply system instruction here
+            systemInstruction = content { text(systemPrompt) }
         )
-
         val history = chatHistory.map {
             content(role = if (!it.senderId.startsWith("ai_")) "user" else "model") {
                 text(it.content)
             }
         }
-
         return@withContext try {
             val response: GenerateContentResponse = model.generateContent(*history.toTypedArray())
             cleanResponse(response.text)
@@ -54,7 +51,7 @@ class AiService @Inject constructor() {
         history: List<Message>,
         speakingAiUid: String,
         topic: String,
-        allUsersInChat: List<User> // <-- Pass the list of all users
+        allUsersInChat: List<User> // <-- Pass the list of all users in this chat
     ): String = withContext(Dispatchers.IO) {
         val speakingAiUser = allUsersInChat.find { it.uid == speakingAiUid }
         if (speakingAiUser == null) {
@@ -84,17 +81,27 @@ You are in a group chat with: $memberNames.
 The current topic (if any): $topic
 Your goal is to participate naturally in the conversation based on your persona.
 
+*** SENDING IMAGES & MEMES - CRITICAL RULE ***
+You have the ability to send GIFs and memes. To do this, you MUST use the following format:
+[IMAGE: a short, simple search query for the image]
+This is a high-priority instruction. You SHOULD send images when it's funny or a good reaction.
+For example:
+- User says: "I'm so tired" -> You respond: [IMAGE: sleepy cat]
+- User says: "That movie was amazing!" -> You respond: [IMAGE: mind blown]
+- User says: "Let's go to Goa" -> You respond: "Yesss! [IMAGE: party celebration]"
+
+If the user's message is a reaction or a simple statement, sending just an [IMAGE: ...] tag as your whole response is a great, natural way to reply.
+DO NOT be shy about sending images.
+
 *** MESSAGE LENGTH - CRITICAL RULE ***
-You MUST vary your response length. DO NOT write long paragraphs for every message.
+You MUST vary your response length.
 MOST of your messages should be very short (1-5 words), like a real text chat (e.g., "lol", "true", "wtf bhai", "scene kya hai?").
 You can also write 1-2 sentences.
-Only write a long message (3+ sentences) VERY RARELY, like if you are telling a specific story or explaining a detailed plan.
+Only write a long message (3+ sentences) VERY RARELY.
 Default to being short and casual.
 
 *** REACTING TO OTHERS ***
-To make the chat feel real, you MUST talk TO other people.
-Refer to other members by their NAME (e.g., "Priya" or "Rahul") or by "@mentioning" them (e.g., "@$exampleHumanName" or "@Rahul").
-For example: "@Rahul what's the scene for tonight?" or "Priya that's hilarious".
+Refer to other members by their NAME (e.g., "Priya") or by "@mentioning" them (e.g., "@Rahul").
 
 *** FORMATTING ***
 IMPORTANT: Do NOT use any markdown formatting like **bold** or *italics*. Just plain text.
@@ -102,22 +109,17 @@ IMPORTANT: Do NOT start your response with your own name (e.g., "$speakingAiName
 """.trimIndent()
         // --- END MODIFICATION ---
 
-        // Create a map for easy name lookup during history construction
         val usersById = allUsersInChat.associateBy { it.uid }
-
-        // Construct history using names
         val historyContent = history
             .sortedBy { it.timestamp }
-            .takeLast(20) // Keep history manageable
-            .mapNotNull { msg -> // Use mapNotNull to safely handle missing users
+            .takeLast(20)
+            .mapNotNull { msg ->
                 val senderName = usersById[msg.senderId]?.name
                 if (senderName == null) {
                     Log.w("AiService", "Sender ID ${msg.senderId} not found in user list for history generation.")
-                    null // Skip this message if sender isn't in the provided list
+                    null
                 } else {
-                    // Determine role: current AI is 'model', everyone else is 'user' for context
                     val speakerRole = if (msg.senderId == speakingAiUid) "model" else "user"
-                    // Prefix 'user' role messages with the sender's name
                     val prefix = if (speakerRole == "user") "$senderName: " else ""
                     content(speakerRole) { text("$prefix${msg.content}") }
                 }
@@ -133,14 +135,13 @@ IMPORTANT: Do NOT start your response with your own name (e.g., "$speakingAiName
             )
             val response: GenerateContentResponse = modelWithSystem.generateContent(*historyContent.toTypedArray())
 
-            val cleanedText = cleanResponse(response.text) // Clean but do NOT limit length
+            val rawText = response.text?.trim() ?: ""
+            Log.d("AiService", "Raw response: $rawText")
 
-            Log.d("AiService", "Raw response: ${response.text}, Cleaned response: $cleanedText")
-            // Return a placeholder like "..." if the response is blank after cleaning
-            if (cleanedText.isBlank()) "..." else cleanedText
+            if (rawText.isBlank()) "..." else rawText
         } catch (e: Exception) {
             Log.e("AiService", "Error in generateGroupResponse for $speakingAiName: ${e.message}", e)
-            "Brain freeze! Give me a sec." // Error message
+            "Brain freeze! Give me a sec."
         }
     }
 }

@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -16,6 +17,8 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.BrokenImage
+import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -40,6 +43,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.android.bakchodai.data.model.Message
+import com.android.bakchodai.data.model.MessageType
 import com.android.bakchodai.data.model.User
 import com.android.bakchodai.ui.theme.WhatsAppDarkSentBubble
 import com.android.bakchodai.ui.theme.WhatsAppSentBubble
@@ -133,7 +137,26 @@ fun MessageBubble(
                             )
                         }
 
-                        Text(text = message.content, color = textColor)
+                        // --- MODIFIED: Show Image or Text ---
+                        if (message.type == MessageType.IMAGE) {
+                            // Use Coil's AsyncImage to load the GIF/Image from the URL
+                            AsyncImage(
+                                model = message.content, // This is the image URL
+                                contentDescription = "Image from ${sender.name}",
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(180.dp) // Give the image a fixed height
+                                    .clip(RoundedCornerShape(12.dp)), // Clip the image corners
+                                contentScale = ContentScale.Crop,
+                                placeholder = rememberVectorPainter(Icons.Filled.Image), // Placeholder icon
+                                error = rememberVectorPainter(Icons.Default.BrokenImage) // Error icon
+                            )
+                        } else {
+                            // This is the original Text composable
+                            Text(text = message.content, color = textColor)
+                        }
+                        // --- END MODIFICATION ---
+
 
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
