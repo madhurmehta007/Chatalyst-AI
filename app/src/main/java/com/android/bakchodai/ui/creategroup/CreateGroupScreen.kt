@@ -63,7 +63,6 @@ fun CreateGroupScreen(
     var topic by remember { mutableStateOf("") }
     val selectedUsers = remember { mutableStateListOf<String>() }
 
-    // Create a map for quick lookup of User objects by ID
     val usersById = remember(users) { users.associateBy { it.uid } }
 
     Scaffold(

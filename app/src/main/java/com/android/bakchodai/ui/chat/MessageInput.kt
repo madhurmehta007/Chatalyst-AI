@@ -48,11 +48,12 @@ fun MessageInput(
 ) {
     var text by remember { mutableStateOf("") }
 
-    Row(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(8.dp),
+            .padding(8.dp)
     ) {
+        // --- Reply Preview Section ---
         AnimatedVisibility(
             visible = replyToMessage != null,
             enter = expandVertically(),
@@ -61,7 +62,6 @@ fun MessageInput(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 4.dp, start = 8.dp, end = 8.dp)
                     .background(
                         MaterialTheme.colorScheme.surfaceVariant,
                         RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp)
@@ -84,40 +84,46 @@ fun MessageInput(
                         overflow = TextOverflow.Ellipsis
                     )
                 }
+
                 IconButton(onClick = onCancelReply, modifier = Modifier.size(24.dp)) {
                     Icon(Icons.Default.Close, contentDescription = "Cancel Reply")
                 }
             }
         }
-        val cardShape = if (replyToMessage != null) {
-            RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp)
-        } else {
-            RoundedCornerShape(24.dp)
-        }
+
+        // --- Input Row ---
         Row(
-            verticalAlignment = Alignment.Bottom
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
         ) {
+            val cardShape = if (replyToMessage != null) {
+                RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp)
+            } else {
+                RoundedCornerShape(24.dp)
+            }
+
             Card(
                 shape = cardShape,
                 modifier = Modifier.weight(1f),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) { // Row for text and icon
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     TextField(
                         value = text,
                         onValueChange = { text = it },
                         placeholder = { Text("Type a message") },
-                        modifier = Modifier.weight(1f), // TextField takes most space
+                        modifier = Modifier.weight(1f),
                         colors = TextFieldDefaults.colors(
                             focusedContainerColor = Color.Transparent,
                             unfocusedContainerColor = Color.Transparent,
                             disabledContainerColor = Color.Transparent,
                             focusedIndicatorColor = Color.Transparent,
                             unfocusedIndicatorColor = Color.Transparent,
-                        )
+                        ),
+                        maxLines = 3,
+                        singleLine = false
                     )
 
-                    // *** NEW ATTACH ICON ***
                     IconButton(onClick = onSendMedia) {
                         Icon(
                             Icons.Default.AttachFile,
@@ -127,23 +133,23 @@ fun MessageInput(
                     }
                 }
             }
-        }
 
-        Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(8.dp))
 
-        IconButton(
-            onClick = {
-                if (text.isNotBlank()) {
-                    onSendMessage(text)
-                    text = ""
-                }
-            },
-            modifier = Modifier
-                .size(48.dp)
-                .background(MaterialTheme.colorScheme.secondary, CircleShape),
-            colors = IconButtonDefaults.iconButtonColors(contentColor = Color.White)
-        ) {
-            Icon(Icons.Default.Send, contentDescription = "Send message")
+            IconButton(
+                onClick = {
+                    if (text.isNotBlank()) {
+                        onSendMessage(text)
+                        text = ""
+                    }
+                },
+                modifier = Modifier
+                    .size(48.dp)
+                    .background(MaterialTheme.colorScheme.secondary, CircleShape),
+                colors = IconButtonDefaults.iconButtonColors(contentColor = Color.White)
+            ) {
+                Icon(Icons.Default.Send, contentDescription = "Send message")
+            }
         }
     }
 }

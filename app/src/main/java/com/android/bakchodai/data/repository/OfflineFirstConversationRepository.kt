@@ -41,11 +41,10 @@ class OfflineFirstConversationRepository @Inject constructor(
 ) : ConversationRepository {
 
     private val database = Firebase.database.reference
-    private val scope = CoroutineScope(Dispatchers.IO) // Use IO dispatcher
+    private val scope = CoroutineScope(Dispatchers.IO)
 
     private var userListener: ValueEventListener? = null
 
-    // --- Syncing Logic ---
     fun startSyncing() {
         Log.d("Repo", "Starting Firebase sync...")
         syncUsers()
@@ -56,7 +55,6 @@ class OfflineFirstConversationRepository @Inject constructor(
         userListener?.let { database.child("users").removeEventListener(it) }
     }
 
-    // syncUsers remains the same
     private fun syncUsers() {
         userListener = database.child("users").addValueEventListener(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
@@ -74,17 +72,15 @@ class OfflineFirstConversationRepository @Inject constructor(
     }
 
 
-    // --- Flow-based methods ---
     override fun getConversationsFlow(): Flow<List<Conversation>> {
         return conversationDao.getAllConversations()
             .map { entities -> entities.map { it.toModel() } }
-            .onStart { // Fetch initial list when flow starts
+            .onStart {
                 fetchAndUpdateUserConversations()
             }
             .flowOn(Dispatchers.IO)
     }
 
-    // Helper to fetch user's conversation list and update Room
     private suspend fun fetchAndUpdateUserConversations() {
         val userId = Firebase.auth.currentUser?.uid ?: return
         try {
@@ -113,7 +109,6 @@ class OfflineFirstConversationRepository @Inject constructor(
 
     @OptIn(ExperimentalCoroutinesApi::class)
     override fun getConversationFlow(id: String): Flow<Conversation?> {
-        // Combine Room Flow with a direct Firebase Listener
         val firebaseFlow = callbackFlow<Conversation?> {
             val conversationRef = database.child("conversations").child(id)
             val listener = conversationRef.addValueEventListener(object : ValueEventListener {
@@ -121,51 +116,38 @@ class OfflineFirstConversationRepository @Inject constructor(
                     val conversation = snapshot.getValue(Conversation::class.java)
                     Log.d("Repo", "Firebase listener update for conv $id (Exists: ${conversation != null})")
                     conversation?.let {
-                        // Update Room in the background
                         scope.launch { conversationDao.insertAll(listOf(it.toEntity())) }
                     }
-                    // Try sending the latest value (conversation or null if deleted)
                     trySend(conversation)
                 }
 
                 override fun onCancelled(error: DatabaseError) {
-                    // *** THE FIX: Handle cancellation gracefully ***
                     Log.e("Repo", "Firebase listener cancelled for conv $id: ${error.message}")
-                    // Don't close with error. Instead, emit null to signal data is gone/inaccessible.
                     trySend(null)
-                    // Optionally, you could close without an error if appropriate,
-                    // but emitting null explicitly handles the deleted state for the UI.
                     close()
                 }
             })
-            // Remove listener when the flow collector cancels
             awaitClose {
                 Log.d("Repo", "Removing Firebase listener for conv $id")
                 conversationRef.removeEventListener(listener)
             }
-        }.flowOn(Dispatchers.IO) // Perform Firebase operations off the main thread
-            .catch { e -> // Catch potential exceptions during flow creation/emission
+        }.flowOn(Dispatchers.IO)
+            .catch { e ->
                 Log.e("Repo", "Error in firebaseFlow for conv $id", e)
-                emit(null) // Emit null on error
+                emit(null)
             }
 
 
-        // Use flatMapLatest to switch to the Room flow.
-        // The Room flow will reflect updates made by the firebaseFlow listener.
         return firebaseFlow.flatMapLatest { firebaseConversation ->
-            // If firebaseConversation is null (deleted or permission denied),
-            // flatMapLatest will switch to a Room flow that should also emit null.
             conversationDao.getConversationById(id)
                 .map { entity ->
-                    // Log what Room is providing
                     Log.v("Repo", "Room emitting for conv $id (Exists: ${entity != null})")
                     entity?.toModel()
                 }
-        }.distinctUntilChanged() // Prevent emitting the same state consecutively
-            .flowOn(Dispatchers.IO) // Ensure Room access is off main thread
+        }.distinctUntilChanged()
+            .flowOn(Dispatchers.IO)
     }
 
-    // --- Suspend functions (Read from Room) ---
     override suspend fun getConversations(): List<Conversation> = withContext(Dispatchers.IO) {
         conversationDao.getAllConversationsSuspend().map { it.toModel() }
     }
@@ -178,7 +160,6 @@ class OfflineFirstConversationRepository @Inject constructor(
         userDao.getAllUsersSuspend().map { it.toModel() }
     }
 
-    // --- Write/Update methods (Write ONLY to Firebase) ---
     override suspend fun addMessage(conversationId: String, message: Message) {
         val messageId = database.child("conversations/$conversationId/messages").push().key ?: return
         try {
@@ -265,33 +246,29 @@ class OfflineFirstConversationRepository @Inject constructor(
         var firebaseUserLinkSuccess = false
         var firebaseMainNodeSuccess = false
 
-        // 1. Attempt to delete the user's link first
         if (currentUserId != null) {
             try {
                 database.child("user-conversations")
                     .child(currentUserId)
                     .child(conversationId)
-                    .removeValue() // Use removeValue for single path
+                    .removeValue()
                     .await()
                 Log.d("Repo", "User link deleted in Firebase for group $conversationId, user $currentUserId")
                 firebaseUserLinkSuccess = true
             } catch (e: Exception) {
                 Log.e("Repo", "Failed to delete user link for group $conversationId in Firebase", e)
-                // Log specific Firebase error if possible
                 if (e is com.google.firebase.database.DatabaseException) {
                     Log.e("Repo", "Firebase DatabaseException on user link delete: ${e.message}")
                 }
-                // Continue to attempt deleting the main node and local data
             }
         } else {
             Log.e("Repo", "Cannot delete user-conversation link for group $conversationId: User not logged in.")
         }
 
-        // 2. Attempt to delete the main conversation node
         try {
             database.child("conversations")
                 .child(conversationId)
-                .removeValue() // Use removeValue for single path
+                .removeValue()
                 .await()
             Log.d("Repo", "Main conversation node deleted in Firebase: $conversationId")
             firebaseMainNodeSuccess = true
@@ -300,23 +277,19 @@ class OfflineFirstConversationRepository @Inject constructor(
             if (e is com.google.firebase.database.DatabaseException) {
                 Log.e("Repo", "Firebase DatabaseException on main node delete: ${e.message}")
             }
-            // Continue to attempt local deletion
         }
 
-        // 3. Always attempt local deletion for immediate UI feedback
         try {
-            scope.launch { // Ensure this runs off the main thread
+            scope.launch {
                 conversationDao.deleteConversationById(conversationId)
                 Log.d("Repo", "Group deleted locally from Room: $conversationId (Firebase link success: $firebaseUserLinkSuccess, main node success: $firebaseMainNodeSuccess)")
-            }.join() // Consider if waiting is necessary
+            }.join()
         } catch (roomError: Exception) {
             Log.e("Repo", "Failed to delete group $conversationId locally from Room", roomError)
         }
 
-        // Optional: Handle overall failure state if needed
         if (!firebaseUserLinkSuccess || !firebaseMainNodeSuccess) {
             Log.w("Repo", "Firebase deletion may have been incomplete for group $conversationId.")
-            // Inform user or schedule retry if necessary
         }
     }
 
@@ -330,7 +303,7 @@ class OfflineFirstConversationRepository @Inject constructor(
             Log.d("Repo", "Group details updated in Firebase: $conversationId")
         } catch (e: Exception) {
             Log.e("Repo", "Failed to update group details in Firebase", e)
-            throw e // Re-throw to inform ViewModel of failure
+            throw e
         }
     }
 
@@ -410,13 +383,11 @@ class OfflineFirstConversationRepository @Inject constructor(
 
     private fun User.toEntity() = UserEntity(
         uid, name, avatarUrl, personality,
-        // Add new fields
         backgroundStory, interests, speakingStyle,
         isOnline, lastSeen,fcmToken
     )
     private fun UserEntity.toModel() = User(
         uid, name, avatarUrl, personality,
-        // Add new fields
         backgroundStory, interests, speakingStyle,
         isOnline, lastSeen,fcmToken
     )

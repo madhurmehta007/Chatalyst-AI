@@ -52,22 +52,18 @@ class AuthViewModel @Inject constructor(private val repository: ConversationRepo
 
     private val auth: FirebaseAuth = Firebase.auth
 
-    // StateFlow to represent the current authentication state.
     private val _authState = MutableStateFlow(AuthState.INITIALIZING)
     val authState: StateFlow<AuthState> = _authState.asStateFlow()
 
-    // StateFlow to hold the current FirebaseUser, or null if logged out.
     private val _user = MutableStateFlow<FirebaseUser?>(auth.currentUser)
     val user: StateFlow<FirebaseUser?> = _user.asStateFlow()
 
-    // StateFlow for loading state during login/signup
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
     private val _errorEvent = MutableSharedFlow<String>()
     val errorEvent = _errorEvent.asSharedFlow()
 
-    // Flag to prevent the AuthStateListener from causing a race condition during login/signup.
     private var isProcessingAuthAction = false
 
     init {
@@ -75,8 +71,6 @@ class AuthViewModel @Inject constructor(private val repository: ConversationRepo
             val firebaseUser = firebaseAuth.currentUser
             _user.value = firebaseUser
 
-            // If an explicit login/signup is in progress, let that function control the state
-            // to prevent the race condition.
             if (isProcessingAuthAction) {
                 return@addAuthStateListener
             }
@@ -107,7 +101,6 @@ class AuthViewModel @Inject constructor(private val repository: ConversationRepo
                     getAndSaveFcmToken(firebaseUser.uid)
                 }
             } catch (e: Exception) {
-                // ... (error handling remains the same) ...
                 when (e) {
                     is FirebaseAuthInvalidUserException,
                     is FirebaseAuthInvalidCredentialsException -> {
@@ -168,11 +161,10 @@ class AuthViewModel @Inject constructor(private val repository: ConversationRepo
                     )
                     repository.addUser(newUser)
 
-                    _user.value = firebaseUser // Set the reloaded user
+                    _user.value = firebaseUser
                     _authState.value = AuthState.LOGGED_IN
                 }
             } catch (e: Exception) {
-                // ... (error handling remains the same) ...
                 when (e) {
                     is FirebaseAuthUserCollisionException -> {
                         _errorEvent.emit("User account already exists")
@@ -217,13 +209,13 @@ class AuthViewModel @Inject constructor(private val repository: ConversationRepo
      */
     fun updateUserName(newName: String) {
         viewModelScope.launch {
-            val firebaseUser = auth.currentUser ?: return@launch // Ensure a user is logged in.
+            val firebaseUser = auth.currentUser ?: return@launch
             try {
                 val profileUpdates = userProfileChangeRequest {
                     displayName = newName
                 }
-                firebaseUser.updateProfile(profileUpdates).await() // Update in Firebase Auth.
-                repository.updateUserName(firebaseUser.uid, newName) // Update in application database.
+                firebaseUser.updateProfile(profileUpdates).await()
+                repository.updateUserName(firebaseUser.uid, newName)
             } catch (e: Exception) {
                 _errorEvent.emit("Failed to update name. Please try again.")
             }

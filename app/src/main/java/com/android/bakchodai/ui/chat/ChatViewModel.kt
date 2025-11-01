@@ -183,7 +183,6 @@ class ChatViewModel @Inject constructor(
         val userId = currentUserId ?: return
 
         viewModelScope.launch(Dispatchers.IO) {
-            // Find all messages that are NOT from me and NOT yet read by me
             val unreadMessageIds = conversation.messages.values
                 .filter { it.senderId != userId && !it.readBy.containsKey(userId) }
                 .map { it.id }

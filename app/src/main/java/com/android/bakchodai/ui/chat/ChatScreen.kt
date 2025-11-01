@@ -74,7 +74,6 @@ fun ChatScreen(
     onDeleteMessage: (String) -> Unit,
     onDeleteGroup: () -> Unit,
     onBack: () -> Unit,
-    // NEW: Receive the list of typing users
     typingUsers: List<User>,
     replyToMessage: Message?,
     onSetReplyToMessage: (Message?) -> Unit
@@ -84,7 +83,6 @@ fun ChatScreen(
     val listState = rememberLazyListState()
     val context = LocalContext.current
 
-    // --- State Management ---
     var selectedMessageId by remember { mutableStateOf<String?>(null) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showDeleteGroupDialog by remember { mutableStateOf(false) }
@@ -93,14 +91,11 @@ fun ChatScreen(
         contract = ActivityResultContracts.PickVisualMedia(),
         onResult = { uri ->
             if (uri != null) {
-                // Pass the selected URI up to the ViewModel
                 onSendMedia(uri)
             }
         }
     )
 
-    // --- Back Press Handler ---
-    // If in selection mode, pressing back cancels selection mode.
     BackHandler(enabled = (selectedMessageId != null)) {
         selectedMessageId = null
     }
@@ -146,28 +141,25 @@ fun ChatScreen(
                     reverseLayout = true,
                     contentPadding = PaddingValues(vertical = 8.dp)
                 ) {
-                    items(messages, key = { it.id }) { message -> // Use the messages list directly
+                    items(messages, key = { it.id }) { message ->
                         val sender = usersById[message.senderId] ?: User(
                             uid = message.senderId,
                             name = "Unknown"
-                        ) // Handle unknown sender
-                        if (message.id.isNotBlank()) { // Add a check for valid message ID
+                        )
+                        if (message.id.isNotBlank()) {
                             MessageBubble(
                                 message = message,
                                 isFromMe = message.senderId == currentUserId,
                                 sender = sender,
                                 isGroup = conversation.group,
                                 isSelected = (selectedMessageId == message.id),
-                                // *** NEW: Pass conversation and user ID ***
                                 conversation = conversation,
                                 currentUserId = currentUserId!!,
                                 onLongPress = { selectedMessageId = message.id },
                                 onEmojiReact = { emoji -> onEmojiReact(message.id, emoji) },
-                                // *** NEW: Set reply message on swipe ***
                                 onSwipeToReply = { onSetReplyToMessage(message) }
                             )
                         } else {
-                            // Log or handle messages without an ID if necessary
                             Log.w(
                                 "ChatScreen",
                                 "Message found without valid ID: ${message.content}"
@@ -196,7 +188,6 @@ fun ChatScreen(
         }
     }
 
-    // --- Dialogs ---
 
     if (showDeleteDialog) {
         AlertDialog(
@@ -206,8 +197,8 @@ fun ChatScreen(
             confirmButton = {
                 Button(
                     onClick = {
-                        selectedMessageId?.let { onDeleteMessage(it) } // Delete the selected message
-                        selectedMessageId = null // Exit selection mode
+                        selectedMessageId?.let { onDeleteMessage(it) }
+                        selectedMessageId = null
                         showDeleteDialog = false
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
@@ -240,7 +231,6 @@ fun ChatScreen(
     }
 }
 
-// --- Top App Bar Composables ---
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -248,7 +238,7 @@ private fun NormalTopBar(
     conversation: Conversation,
     usersById: Map<String, User>,
     currentUserId: String?,
-    typingUsers: List<User>, // MODIFIED: Receive list of users
+    typingUsers: List<User>,
     onNavigateToEditGroup: () -> Unit,
     onBack: () -> Unit,
     onShowDeleteGroupDialog: () -> Unit
@@ -293,30 +283,26 @@ private fun NormalTopBar(
 
                     val typingText = when {
                         typingUsers.isNotEmpty() -> {
-                            // If more than 2, show "several people..."
                             if (typingUsers.size > 2) "several people are typing..."
-                            // Otherwise, join names: "Rahul and Priya are typing..."
                             else typingUsers.joinToString(separator = " and ") { it.name } + if (typingUsers.size == 1) " is typing..." else " are typing..."
                         }
-                        // Fallback logic
                         conversation.group -> "${conversation.participants.size} members"
-                        else -> "Online" // "Online" for 1-on-1
+                        else -> "Online"
                     }
 
                     val typingColor = if (typingUsers.isNotEmpty()) {
-                        MaterialTheme.colorScheme.primary // Use a distinct color for typing
+                        MaterialTheme.colorScheme.primary
                     } else {
-                        Color.Gray // Default color for member count/online
+                        Color.Gray
                     }
 
                     Text(
                         text = typingText,
-                        style = MaterialTheme.typography.labelMedium, // Slightly larger
+                        style = MaterialTheme.typography.labelMedium,
                         color = typingColor,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
-                    // --- END NEW TYPING LOGIC ---
                 }
             }
         },

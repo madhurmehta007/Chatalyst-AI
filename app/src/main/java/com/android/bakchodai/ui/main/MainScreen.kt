@@ -1,4 +1,3 @@
-// file: bakchodai/ui/main/MainScreen.kt
 package com.android.bakchodai.ui.main
 
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -79,7 +78,6 @@ fun MainScreen(
                                 error = rememberVectorPainter(Icons.Default.AccountCircle)
                             )
                         } else {
-                            // Fallback icon while loading
                             Icon(Icons.Default.AccountCircle, contentDescription = "Profile", tint = Color.White)
                         }
                     }

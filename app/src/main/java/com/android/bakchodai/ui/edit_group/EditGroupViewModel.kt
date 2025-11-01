@@ -13,12 +13,11 @@ import javax.inject.Inject
 @HiltViewModel
 class EditGroupViewModel @Inject constructor(
     private val repository: ConversationRepository,
-    savedStateHandle: SavedStateHandle // To get conversationId from navigation args
+    savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
     val conversationId: String = savedStateHandle.get<String>("conversationId")!!
 
-    // Use stateIn to keep observing the conversation details
     val conversation: StateFlow<Conversation?> = repository.getConversationFlow(conversationId)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
@@ -36,7 +35,6 @@ class EditGroupViewModel @Inject constructor(
             _errorMessage.value = "Group name cannot be empty."
             return
         }
-        // Ensure conversation data is loaded before saving
         if (conversation.value == null) {
              _errorMessage.value = "Cannot save, conversation data not loaded yet."
              return

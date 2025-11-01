@@ -28,11 +28,10 @@ class AddAiCharacterViewModel @Inject constructor(private val repository: Conver
     fun addAiCharacter(
         name: String,
         personality: String,
-        background: String, // New
-        interests: String, // New
-        style: String // New
+        background: String,
+        interests: String,
+        style: String
     ) {
-        // Basic validation
         if (name.isBlank() || personality.isBlank() || background.isBlank() || style.isBlank()) {
             _errorMessage.value = "All fields except Interests are required."
             return
@@ -54,14 +53,14 @@ class AddAiCharacterViewModel @Inject constructor(private val repository: Conver
                 val newAiUser = User(
                     uid = aiUid,
                     name = name.trim(),
-                    personality = personality.trim(), // Short summary
+                    personality = personality.trim(),
                     avatarUrl = avatarUrl,
                     backgroundStory = background.trim(),
-                    interests = interests.trim(), // Can be blank
+                    interests = interests.trim(),
                     speakingStyle = style.trim()
                 )
 
-                repository.addUser(newAiUser) // addUser in repo needs to handle the User model
+                repository.addUser(newAiUser)
                 _addSuccess.value = true
 
             } catch (e: Exception) {

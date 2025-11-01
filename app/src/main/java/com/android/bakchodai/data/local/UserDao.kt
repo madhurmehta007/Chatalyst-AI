@@ -14,7 +14,6 @@ interface UserDao {
     @Query("SELECT * FROM users")
     fun getAllUsers(): Flow<List<UserEntity>>
 
-    // *** ADDED: Suspend function for one-time fetch ***
     @Query("SELECT * FROM users")
     suspend fun getAllUsersSuspend(): List<UserEntity>
 
@@ -36,7 +35,6 @@ interface ConversationDao {
     @Query("DELETE FROM conversations WHERE id = :conversationId")
     suspend fun deleteConversationById(conversationId: String)
 
-    // *** ADDED: Suspend functions for one-time fetch ***
     @Query("SELECT * FROM conversations")
     suspend fun getAllConversationsSuspend(): List<ConversationEntity>
 

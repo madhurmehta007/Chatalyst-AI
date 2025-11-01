@@ -16,16 +16,13 @@ import javax.inject.Singleton
 @Singleton
 class AiService @Inject constructor() {
 
-    // Helper function to clean common markdown
     private fun cleanResponse(text: String?): String {
-        return text?.replace("**", "") // Remove double asterisks
-            ?.trim() // Trim leading/trailing whitespace
-            ?: "" // Return empty string if text is null
+        return text?.replace("**", "")
+            ?.trim()
+            ?: ""
     }
 
-    // Function for 1-to-1 responses
     suspend fun getResponse(chatHistory: List<Message>): String = withContext(Dispatchers.IO) {
-        // ... (this function remains unchanged) ...
         val systemPrompt = "You are a helpful chat assistant. Do not use markdown formatting like asterisks."
         val model = GenerativeModel(
             modelName = "gemini-2.5-flash",
@@ -46,12 +43,11 @@ class AiService @Inject constructor() {
         }
     }
 
-    // Function for Group responses (Refactored)
     suspend fun generateGroupResponse(
         history: List<Message>,
         speakingAiUid: String,
         topic: String,
-        allUsersInChat: List<User> // <-- Pass the list of all users in this chat
+        allUsersInChat: List<User>
     ): String = withContext(Dispatchers.IO) {
         val speakingAiUser = allUsersInChat.find { it.uid == speakingAiUid }
         if (speakingAiUser == null) {
@@ -60,7 +56,6 @@ class AiService @Inject constructor() {
         }
         val speakingAiName = speakingAiUser.name
 
-        // *** Construct detailed persona description ***
         val personaDescription = """
 You MUST act AS $speakingAiName. DO NOT mention you are an AI.
 Your character details:
@@ -73,7 +68,6 @@ Your character details:
         val memberNames = allUsersInChat.joinToString { it.name }
         val exampleHumanName = allUsersInChat.firstOrNull { !it.uid.startsWith("ai_") }?.name ?: "HumanUser"
 
-        // --- MODIFIED SYSTEM PROMPT ---
         val systemPrompt = """
 $personaDescription
 
@@ -107,7 +101,6 @@ Refer to other members by their NAME (e.g., "Priya") or by "@mentioning" them (e
 IMPORTANT: Do NOT use any markdown formatting like **bold** or *italics*. Just plain text.
 IMPORTANT: Do NOT start your response with your own name (e.g., "$speakingAiName:"). Just write the message content like a real person would.
 """.trimIndent()
-        // --- END MODIFICATION ---
 
         val usersById = allUsersInChat.associateBy { it.uid }
         val historyContent = history

@@ -11,9 +11,7 @@ data class Message(
     val type: MessageType = MessageType.TEXT,
     val reactions: Map<String, String> = emptyMap(),
     val isEdited: Boolean = false,
-
     val readBy: Map<String, Long> = emptyMap(),
-
     val replyToMessageId: String? = null,
     val replyPreview: String? = null,
     val replySenderName: String? = null

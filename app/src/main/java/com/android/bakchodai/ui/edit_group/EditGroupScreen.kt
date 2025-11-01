@@ -25,7 +25,6 @@ fun EditGroupScreen(
     val errorMessage by viewModel.errorMessage.collectAsState()
     val context = LocalContext.current
 
-    // Local state for text fields, initialized when conversation loads
     var groupName by remember(conversation) { mutableStateOf(conversation?.name ?: "") }
     var topic by remember(conversation) { mutableStateOf(conversation?.topic ?: "") }
 

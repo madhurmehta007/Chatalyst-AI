@@ -19,7 +19,6 @@ interface ConversationRepository {
     suspend fun addUser(user: User)
     suspend fun updateUserName(uid: String, newName: String)
 
-    // Added for new features
     suspend fun updateMessage(conversationId: String, messageId: String, newText: String)
     suspend fun deleteMessage(conversationId: String, messageId: String)
     suspend fun deleteGroup(conversationId: String)

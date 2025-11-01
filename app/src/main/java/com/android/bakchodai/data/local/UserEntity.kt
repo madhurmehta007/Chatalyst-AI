@@ -31,7 +31,6 @@ data class ConversationEntity(
     val typing: Map<String, Boolean>
 )
 
-// A helper class for a full conversation with users
 data class ConversationWithUsers(
     val conversation: ConversationEntity,
     val userList: List<UserEntity>

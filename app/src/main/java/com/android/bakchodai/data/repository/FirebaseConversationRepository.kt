@@ -1,10 +1,8 @@
-// FirebaseConversationRepository.kt
 package com.android.bakchodai.data.repository
 
 import android.util.Log
 import com.android.bakchodai.data.model.Conversation
 import com.android.bakchodai.data.model.Message
-import com.android.bakchodai.data.model.MessageStatus
 import com.android.bakchodai.data.model.MessageType
 import com.android.bakchodai.data.model.User
 import com.android.bakchodai.data.remote.AiService
@@ -119,22 +117,16 @@ class FirebaseConversationRepository : ConversationRepository {
     }
 
     override suspend fun addMessage(conversationId: String, message: Message) {
-        // 1. Write the new message to the database
         val messageId = database.child("conversations/$conversationId/messages").push().key!!
         database.child("conversations/$conversationId/messages/$messageId").setValue(message.copy(id = messageId)).await()
 
-        // 2. Check if this is a 1-to-1 chat
         val conversation = getConversation(conversationId)
 
-        // 3. *** LOOP FIX ***
-        //    ONLY generate a response if the message is from a HUMAN and it's NOT a group chat.
-        //    Group chats are handled by GroupChatService.
         if (conversation != null && !message.senderId.startsWith("ai_") && !conversation.group) {
             generateAndAddAiResponse(conversationId, message.senderId)
         }
     }
 
-    // This function is now ONLY for 1-to-1 AI responses
     private suspend fun generateAndAddAiResponse(conversationId: String, lastSenderId: String) {
         withContext(Dispatchers.IO) {
             try {
@@ -143,9 +135,8 @@ class FirebaseConversationRepository : ConversationRepository {
                 val history = conversation.messages.values.toList()
 
                 if (aiParticipantIds.isNotEmpty()) {
-                    val speakingAi = aiParticipantIds.first() // In 1-to-1, there's only one
+                    val speakingAi = aiParticipantIds.first()
 
-                    // Use the simple getResponse for 1-to-1 chats
                     val response = aiService.getResponse(history)
 
                     val newMessage = Message(
@@ -156,8 +147,6 @@ class FirebaseConversationRepository : ConversationRepository {
                         type = MessageType.TEXT
                     )
 
-                    // *** CRITICAL LOOP FIX ***
-                    // Write directly to DB instead of calling addMessage() again.
                     val newMsgId = database.child("conversations/$conversationId/messages").push().key!!
                     database.child("conversations/$conversationId/messages/$newMsgId").setValue(newMessage.copy(id = newMsgId)).await()
                 }
@@ -243,10 +232,6 @@ class FirebaseConversationRepository : ConversationRepository {
 
         database.updateChildren(childUpdates).await()
 
-        // Don't auto-message on group creation, let GroupChatService handle it.
-        // if (isGroup && topic.isNotBlank()) {
-        //     generateAndAddAiResponse(conversationId, "")
-        // }
         return conversationId
     }
 
@@ -277,7 +262,7 @@ class FirebaseConversationRepository : ConversationRepository {
         val messageUpdate = mapOf(
             "content" to newText,
             "isEdited" to true,
-            "timestamp" to System.currentTimeMillis() // Optionally update timestamp
+            "timestamp" to System.currentTimeMillis()
         )
         database.child("conversations/$conversationId/messages/$messageId")
             .updateChildren(messageUpdate)
@@ -291,21 +276,17 @@ class FirebaseConversationRepository : ConversationRepository {
     }
 
     override suspend fun deleteGroup(conversationId: String) {
-        // First, get the conversation to find all participants
         val conversation = getConversation(conversationId) ?: return
         val participantIds = conversation.participants.keys
 
         val childUpdates = mutableMapOf<String, Any?>()
 
-        // 1. Mark the group for deletion
         childUpdates["/conversations/$conversationId"] = null
 
-        // 2. Mark the group for deletion from each participant's list
         participantIds.forEach { participantId ->
             childUpdates["/user-conversations/$participantId/$conversationId"] = null
         }
 
-        // 3. Atomically delete all entries
         database.updateChildren(childUpdates).await()
     }
 
@@ -319,12 +300,10 @@ class FirebaseConversationRepository : ConversationRepository {
             Log.d("FirebaseRepo", "Group details updated: $conversationId")
         } catch (e: Exception) {
             Log.e("FirebaseRepo", "Failed to update group details for $conversationId", e)
-            // Re-throw or handle as needed
             throw e
         }
     }
 
-    // NEW: Implement the typing indicator function
     override suspend fun setTypingIndicator(conversationId: String, userId: String, isTyping: Boolean) {
         val typingRef = database.child("conversations/$conversationId/typing/$userId")
         try {

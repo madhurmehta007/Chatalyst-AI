@@ -37,10 +37,8 @@ class GiphyService @Inject constructor() {
             val data = json.getJSONArray("data")
 
             if (data.length() > 0) {
-                // Pick a random GIF from the search results
                 val randomGif = data.getJSONObject((0 until data.length()).random())
                 val images = randomGif.getJSONObject("images")
-                // Use the fixed_height version for good quality and size
                 val gifUrl = images.getJSONObject("fixed_height").getString("url")
                 Log.d("GiphyService", "Found GIF for '$query': $gifUrl")
                 gifUrl

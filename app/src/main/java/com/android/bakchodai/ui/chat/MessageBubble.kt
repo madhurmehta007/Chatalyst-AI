@@ -79,15 +79,15 @@ fun MessageBubble(
         RoundedCornerShape(topStart = 16.dp, bottomStart = 4.dp, topEnd = 16.dp, bottomEnd = 16.dp)
     }
     val bubbleColor = if (isFromMe) {
-        MaterialTheme.colorScheme.tertiary // Use theme-defined "sent" color
+        MaterialTheme.colorScheme.tertiary
     } else {
-        MaterialTheme.colorScheme.surfaceVariant // Use theme-defined "received" color
+        MaterialTheme.colorScheme.surfaceVariant
     }
 
     val textColor = if (isFromMe) {
-        MaterialTheme.colorScheme.onSecondaryContainer // Text for "sent" bubble
+        MaterialTheme.colorScheme.onSecondaryContainer
     } else {
-        MaterialTheme.colorScheme.onSurfaceVariant // Text for "received" bubble
+        MaterialTheme.colorScheme.onSurfaceVariant
     }
 
     var showEmojiPicker by remember { mutableStateOf(false) }
@@ -115,7 +115,6 @@ fun MessageBubble(
                     swipeOffset = 0f
                 },
                 onDrag = { change, dragAmount ->
-                    // Only allow swiping right (positive drag)
                     if (dragAmount.x > 0) {
                         swipeOffset =
                             (swipeOffset + dragAmount.x).coerceIn(0f, swipeThreshold + 50f)
@@ -129,7 +128,7 @@ fun MessageBubble(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(selectionColor) // Apply selection highlight
+            .background(selectionColor)
             .padding(horizontal = 8.dp, vertical = 2.dp),
         verticalAlignment = Alignment.Bottom,
         horizontalArrangement = if (isFromMe) Arrangement.End else Arrangement.Start
@@ -142,10 +141,10 @@ fun MessageBubble(
                 modifier = Modifier
                     .size(32.dp)
                     .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surfaceVariant), // Background for placeholder/error
-                contentScale = ContentScale.Crop, // Crop image to fit circle
-                placeholder = rememberVectorPainter(Icons.Filled.Person), // Show person icon while loading
-                error = rememberVectorPainter(Icons.Filled.Person) // Show person icon on error
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                contentScale = ContentScale.Crop,
+                placeholder = rememberVectorPainter(Icons.Filled.Person),
+                error = rememberVectorPainter(Icons.Filled.Person)
             )
             Spacer(modifier = Modifier.width(8.dp))
         }
@@ -202,7 +201,6 @@ fun MessageBubble(
                             }
                         }
 
-                        // --- MODIFIED: Show Image or Text ---
                         if (message.type == MessageType.IMAGE) {
                             // Use Coil's AsyncImage to load the GIF/Image from the URL
                             AsyncImage(
@@ -220,7 +218,6 @@ fun MessageBubble(
                             // This is the original Text composable
                             Text(text = message.content, color = textColor)
                         }
-                        // --- END MODIFICATION ---
 
 
                         Row(
@@ -257,9 +254,9 @@ fun MessageBubble(
                                 val statusIcon =
                                     if (isReadByAll) Icons.Default.DoneAll else Icons.Default.Done
                                 val iconTint = if (isReadByAll)
-                                    MaterialTheme.colorScheme.primary // Blue check
+                                    MaterialTheme.colorScheme.primary
                                 else
-                                    textColor.copy(alpha = 0.7f) // Gray check
+                                    textColor.copy(alpha = 0.7f)
 
                                 Icon(
                                     imageVector = statusIcon,
@@ -283,7 +280,7 @@ fun MessageBubble(
                         onClick = { isDropdownExpanded = false }
                     )
                 }
-            } // End Box
+            }
 
 
             if (message.reactions.isNotEmpty()) {
@@ -306,7 +303,6 @@ fun MessageBubble(
                 }
             }
 
-            // --- 5. Emoji Picker (popup) ---
             if (showEmojiPicker) {
                 Row {
                     listOf("😄", "😂", "👍", "🔥").forEach { emoji ->
@@ -322,6 +318,6 @@ fun MessageBubble(
                     }
                 }
             }
-        } // End Bubble + Reactions Column
-    } // End Main Row
+        }
+    }
 }

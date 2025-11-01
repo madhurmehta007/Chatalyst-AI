@@ -114,7 +114,6 @@ fun AppNavigation() {
                         onUserClick = { user ->
                             newChatViewModel.findOrCreateConversation(user)
                         },
-                        // *** ADDED: Navigate to new screen ***
                         onAddAiClick = {
                             navController.navigate("add_ai_character")
                         },
@@ -135,7 +134,7 @@ fun AppNavigation() {
                     AddAiCharacterScreen(
                         viewModel = addAiViewModel,
                         onBack = { navController.popBackStack() },
-                        onAddSuccess = { navController.popBackStack() } // Go back after adding
+                        onAddSuccess = { navController.popBackStack() }
                     )
                 }
 
@@ -163,7 +162,6 @@ fun AppNavigation() {
                     }
                 }
 
-                // *** THIS IS THE CORRECTED LOGIC ***
                 composable("chat/{conversationId}") { backStackEntry ->
                     val conversationId = backStackEntry.arguments?.getString("conversationId")!!
                     val chatViewModel: ChatViewModel = hiltViewModel()
@@ -178,7 +176,6 @@ fun AppNavigation() {
                     val isUploading by chatViewModel.isUploading.collectAsState()
                     val replyToMessage by chatViewModel.replyToMessage.collectAsState()
                     if (isLoading) {
-                        // State 1: We are actively loading the conversation
                         Box(
                             modifier = Modifier.fillMaxSize(),
                             contentAlignment = Alignment.Center
@@ -186,13 +183,10 @@ fun AppNavigation() {
                             CircularProgressIndicator()
                         }
                     } else if (conversation == null) {
-                        // State 2: Loading is finished, but conversation is still null.
-                        // This means it was deleted or invalid. Pop back to the main screen.
                         LaunchedEffect(Unit) {
                             navController.popBackStack()
                         }
                     } else {
-                        // State 3: Loading is finished and we have a conversation to show
                         ChatScreen(
                             conversation = conversation!!,
                             users = users,
@@ -230,7 +224,6 @@ fun AppNavigation() {
                 }
 
                 composable("edit_group/{conversationId}") { backStackEntry ->
-                    // ViewModel is automatically created by Hilt with conversationId
                     EditGroupScreen(
                         onBack = { navController.popBackStack() }
                     )

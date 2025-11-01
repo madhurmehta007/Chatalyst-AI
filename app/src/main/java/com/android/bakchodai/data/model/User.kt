@@ -18,13 +18,12 @@ data class User(
 ){
     fun resolveAvatarUrl(): String {
         return if (!avatarUrl.isNullOrBlank()) {
-            avatarUrl // Use the URL from Firebase if it exists
+            avatarUrl
         } else {
-            // Generate a default URL if Firebase doesn't have one
             val encodedName = try {
                 URLEncoder.encode(name, "UTF-8")
             } catch (e: Exception) {
-                name // Fallback to raw name if encoding fails
+                name
             }
             "https://api.dicebear.com/7.x/avataaars/avif?seed=${encodedName}"
         }

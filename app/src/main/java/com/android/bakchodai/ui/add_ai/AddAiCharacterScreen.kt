@@ -1,13 +1,34 @@
 package com.android.bakchodai.ui.add_ai
 
 import android.widget.Toast
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -26,22 +47,22 @@ fun AddAiCharacterScreen(
     val addSuccess by viewModel.addSuccess.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
     val context = LocalContext.current
-    var background by remember { mutableStateOf("") } // New state
-    var interests by remember { mutableStateOf("") } // New state
-    var style by remember { mutableStateOf("") } // New state
+    var background by remember { mutableStateOf("") }
+    var interests by remember { mutableStateOf("") }
+    var style by remember { mutableStateOf("") }
 
     LaunchedEffect(addSuccess) {
         if (addSuccess) {
             Toast.makeText(context, "AI Character Added!", Toast.LENGTH_SHORT).show()
-            viewModel.resetSuccess() // Reset state
-            onAddSuccess() // Navigate back
+            viewModel.resetSuccess()
+            onAddSuccess()
         }
     }
 
     LaunchedEffect(errorMessage) {
         errorMessage?.let {
             Toast.makeText(context, it, Toast.LENGTH_LONG).show()
-            viewModel.clearError() // Clear error after showing
+            viewModel.clearError()
         }
     }
 
@@ -104,7 +125,6 @@ fun AddAiCharacterScreen(
                     maxLines = 3
                 )
                 Spacer(modifier = Modifier.height(16.dp))
-                // Speaking Style
                 OutlinedTextField(
                     value = style,
                     onValueChange = { style = it },
@@ -117,13 +137,12 @@ fun AddAiCharacterScreen(
                 Spacer(modifier = Modifier.height(24.dp))
                 Button(
                     onClick = { viewModel.addAiCharacter(name, personality, background, interests, style) },
-                    // Update validation if needed
                     enabled = !isLoading && name.isNotBlank() && personality.isNotBlank() && background.isNotBlank() && style.isNotBlank(),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text("Add AI Character")
                 }
-                Spacer(modifier = Modifier.height(16.dp)) // Add space at bottom
+                Spacer(modifier = Modifier.height(16.dp))
             }
             if (isLoading) {
                 CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))

@@ -8,7 +8,6 @@ import com.google.gson.reflect.TypeToken
 class TypeConverters {
     private val gson = Gson()
 
-    // For participants map
     @TypeConverter
     fun fromParticipantsMap(value: Map<String, Boolean>): String {
         return gson.toJson(value)
@@ -20,7 +19,6 @@ class TypeConverters {
         return gson.fromJson(value, mapType)
     }
 
-    // For messages map
     @TypeConverter
     fun fromMessagesMap(value: Map<String, Message>): String {
         return gson.toJson(value)

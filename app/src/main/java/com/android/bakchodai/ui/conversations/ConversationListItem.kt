@@ -1,4 +1,3 @@
-// ConversationListItem.kt
 package com.android.bakchodai.ui.conversations
 
 import androidx.compose.foundation.background
@@ -40,7 +39,6 @@ fun ConversationListItem(
     val currentUserId = Firebase.auth.currentUser?.uid
     val displayName: String
     val (avatarUrl, placeholderIcon) = if (conversation.group) {
-        // It's a group, generate avatar from group name
         displayName = conversation.name
         Pair(
             "https://ui-avatars.com/api/?name=${conversation.name.replace(" ", "+")}&background=random",
@@ -50,7 +48,6 @@ fun ConversationListItem(
         val otherUserId = conversation.participants.keys.firstOrNull { it != currentUserId }
         val otherUser = users.find { it.uid == otherUserId }
 
-        // *** SET THE DISPLAY NAME to the other user's name ***
         displayName = otherUser?.name ?: "Unknown User"
         Pair(
             otherUser?.resolveAvatarUrl() ?: "https://ui-avatars.com/api/?name=?",
@@ -64,22 +61,20 @@ fun ConversationListItem(
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Profile Picture
         AsyncImage(
-            model = avatarUrl, // Placeholder URL for now
+            model = avatarUrl,
             contentDescription = "Profile Picture",
             modifier = Modifier
                 .size(50.dp)
                 .clip(CircleShape)
                 .background(MaterialTheme.colorScheme.surfaceVariant),
             contentScale = ContentScale.Crop,
-            placeholder = rememberVectorPainter(placeholderIcon), // Use icon based on chat type
-            error = rememberVectorPainter(placeholderIcon) // Use icon based on chat type
+            placeholder = rememberVectorPainter(placeholderIcon),
+            error = rememberVectorPainter(placeholderIcon)
         )
 
         Spacer(Modifier.width(16.dp))
 
-        // Name and Last Message
         Column(
             modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.Center
@@ -103,7 +98,6 @@ fun ConversationListItem(
 
         Spacer(Modifier.width(16.dp))
 
-        // Timestamp
         if (lastMessage != null) {
             Text(
                 text = formatTimestamp(lastMessage.timestamp),
