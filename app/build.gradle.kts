@@ -32,6 +32,7 @@ android {
         // Expose the API key from local.properties
         buildConfigField("String", "GEMINI_API_KEY", "\"${localProperties.getProperty("GEMINI_API_KEY")}\"")
         buildConfigField("String", "GIPHY_API_KEY", "\"${localProperties.getProperty("GIPHY_API_KEY")}\"")
+        buildConfigField("String", "WEB_CLIENT_ID", "\"${localProperties.getProperty("WEB_CLIENT_ID")}\"")
     }
 
     buildTypes {
@@ -58,6 +59,7 @@ android {
         load(FileInputStream(rootProject.file("local.properties")))
         android.defaultConfig.buildConfigField("String", "GEMINI_API_KEY", "\"${getProperty("GEMINI_API_KEY")}\"")
         android.defaultConfig.buildConfigField("String", "GIPHY_API_KEY", "\"${getProperty("GIPHY_API_KEY")}\"")
+        android.defaultConfig.buildConfigField("String", "WEB_CLIENT_ID", "\"${getProperty("WEB_CLIENT_ID")}\"")
     }
     kapt {
         correctErrorTypes = true
@@ -85,9 +87,15 @@ dependencies {
     implementation("com.google.firebase:firebase-messaging-ktx")
     implementation("com.google.firebase:firebase-storage-ktx")
 
+    implementation("com.google.android.gms:play-services-auth:21.2.0")
+    implementation("androidx.credentials:credentials:1.2.2")
+    implementation("androidx.credentials:credentials-play-services-auth:1.2.2")
+    implementation("com.google.android.libraries.identity.googleid:googleid:1.1.0")
+    implementation("com.google.android.gms:play-services-base:18.3.0")
     // Google AI
     implementation("com.google.ai.client.generativeai:generativeai:0.9.0")
     implementation("androidx.datastore:datastore-preferences:1.1.1")
+    implementation(libs.googleid)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

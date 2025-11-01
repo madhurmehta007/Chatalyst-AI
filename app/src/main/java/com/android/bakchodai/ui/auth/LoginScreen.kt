@@ -13,7 +13,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
@@ -37,7 +39,8 @@ import com.android.bakchodai.R
 fun LoginScreen(
     isLoading: Boolean,
     onLoginClick: (String, String) -> Unit,
-    onSignUpClick: () -> Unit
+    onSignUpClick: () -> Unit,
+    onGoogleSignInClick: () -> Unit
 ) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -112,6 +115,20 @@ fun LoginScreen(
                 ) {
                     Text("Login")
                 }
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+            OutlinedButton(
+                onClick = onGoogleSignInClick,
+                enabled = !isLoading,
+                modifier = Modifier.fillMaxWidth().height(50.dp)
+            ) {
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_google_logo),
+                    contentDescription = "Google Logo",
+                    modifier = Modifier.size(24.dp),
+                    tint = Color.Unspecified
+                )
+                Text("  Sign in with Google", modifier = Modifier.padding(start = 8.dp))
             }
 
             TextButton(onClick = onSignUpClick, enabled = !isLoading) {

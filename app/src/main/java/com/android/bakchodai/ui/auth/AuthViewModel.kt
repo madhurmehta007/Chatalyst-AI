@@ -2,6 +2,7 @@
 
 package com.android.bakchodai.ui.auth
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.android.bakchodai.data.model.User
@@ -12,6 +13,7 @@ import com.google.firebase.auth.FirebaseAuthInvalidUserException
 import com.google.firebase.auth.FirebaseAuthUserCollisionException
 import com.google.firebase.auth.FirebaseAuthWeakPasswordException
 import com.google.firebase.auth.FirebaseUser
+import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.auth.ktx.userProfileChangeRequest
 import com.google.firebase.ktx.Firebase
@@ -110,6 +112,51 @@ class AuthViewModel @Inject constructor(private val repository: ConversationRepo
                         _errorEvent.emit("Login failed. Please try again.")
                     }
                 }
+                _authState.value = AuthState.LOGGED_OUT
+            } finally {
+                _isLoading.value = false
+                isProcessingAuthAction = false
+            }
+        }
+    }
+
+    fun signInWithGoogle(idToken: String) {
+        viewModelScope.launch {
+            isProcessingAuthAction = true
+            _isLoading.value = true
+            try {
+                val credential = GoogleAuthProvider.getCredential(idToken, null)
+                val result = auth.signInWithCredential(credential).await()
+                val firebaseUser = result.user!!
+
+                // Check if this is a new user
+                if (result.additionalUserInfo?.isNewUser == true) {
+                    // Create a new User object in the database
+                    val token = try {
+                        FirebaseMessaging.getInstance().token.await()
+                    } catch (e: Exception) { "" }
+
+                    val newUser = User(
+                        uid = firebaseUser.uid,
+                        name = firebaseUser.displayName ?: "User",
+                        avatarUrl = firebaseUser.photoUrl?.toString(),
+                        isOnline = true,
+                        lastSeen = System.currentTimeMillis(),
+                        fcmToken = token,
+                        bio = "" // Set empty bio
+                    )
+                    repository.addUser(newUser)
+                } else {
+                    // Existing user, just update their FCM token
+                    getAndSaveFcmToken(firebaseUser.uid)
+                }
+
+                _user.value = firebaseUser
+                _authState.value = AuthState.LOGGED_IN
+
+            } catch (e: Exception) {
+                Log.e("AuthViewModel", "Google Sign-In failed", e)
+                _errorEvent.emit("Google Sign-In failed. Please try again.")
                 _authState.value = AuthState.LOGGED_OUT
             } finally {
                 _isLoading.value = false

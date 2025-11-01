@@ -1,6 +1,7 @@
 {
   "project_info": {
     "project_number": "226759716419",
+    "firebase_url": "https://bakchod-ai-default-rtdb.firebaseio.com",
     "project_id": "bakchod-ai",
     "storage_bucket": "bakchod-ai.firebasestorage.app"
   },
@@ -12,7 +13,20 @@
           "package_name": "com.android.bakchodai"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "226759716419-m552o97q75ij0gpu39rv919m6206b7hn.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.android.bakchodai",
+            "certificate_hash": "dd1268d2ce7720bebea3a415a9c385fd46bf7c9e"
+          }
+        },
+        {
+          "client_id": "226759716419-g6roibd3ted0ti9ikd0lvtl29crijnfi.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyDrui-V2XgjP6gfqgHzKMeVD7j0rV25GnA"
@@ -20,7 +34,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "226759716419-g6roibd3ted0ti9ikd0lvtl29crijnfi.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }
