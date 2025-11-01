@@ -9,7 +9,12 @@ data class Message(
     val content: String = "",
     val timestamp: Long = 0L,
     val type: MessageType = MessageType.TEXT,
-    val status: MessageStatus = MessageStatus.SENT,
-    val reactions: Map<String, String> = emptyMap(), // userId -> emoji
-    val isEdited: Boolean = false // Added for edit feature
+    val reactions: Map<String, String> = emptyMap(),
+    val isEdited: Boolean = false,
+
+    val readBy: Map<String, Long> = emptyMap(),
+
+    val replyToMessageId: String? = null,
+    val replyPreview: String? = null,
+    val replySenderName: String? = null
 )

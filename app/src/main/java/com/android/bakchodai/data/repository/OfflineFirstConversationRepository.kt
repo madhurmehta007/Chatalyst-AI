@@ -390,6 +390,24 @@ class OfflineFirstConversationRepository @Inject constructor(
         }
     }
 
+    override suspend fun markMessagesAsRead(conversationId: String, messageIds: List<String>, userId: String) {
+        if (messageIds.isEmpty()) return
+
+        val updates = mutableMapOf<String, Any?>()
+        val readTimestamp = System.currentTimeMillis()
+
+        messageIds.forEach { msgId ->
+            updates["/conversations/$conversationId/messages/$msgId/readBy/$userId"] = readTimestamp
+        }
+
+        try {
+            database.updateChildren(updates).await()
+            Log.d("Repo", "Marked ${messageIds.size} messages as read by $userId")
+        } catch (e: Exception) {
+            Log.e("Repo", "Failed to mark messages as read", e)
+        }
+    }
+
     private fun User.toEntity() = UserEntity(
         uid, name, avatarUrl, personality,
         // Add new fields

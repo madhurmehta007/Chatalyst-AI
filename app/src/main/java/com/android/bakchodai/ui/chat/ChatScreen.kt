@@ -41,8 +41,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -56,10 +54,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.android.bakchodai.data.model.Conversation
+import com.android.bakchodai.data.model.Message
 import com.android.bakchodai.data.model.User
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.ktx.Firebase
-import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -77,7 +75,9 @@ fun ChatScreen(
     onDeleteGroup: () -> Unit,
     onBack: () -> Unit,
     // NEW: Receive the list of typing users
-    typingUsers: List<User>
+    typingUsers: List<User>,
+    replyToMessage: Message?,
+    onSetReplyToMessage: (Message?) -> Unit
 ) {
     val usersById = users.associateBy { it.uid }
     val currentUserId = Firebase.auth.currentUser?.uid
@@ -158,8 +158,13 @@ fun ChatScreen(
                                 sender = sender,
                                 isGroup = conversation.group,
                                 isSelected = (selectedMessageId == message.id),
+                                // *** NEW: Pass conversation and user ID ***
+                                conversation = conversation,
+                                currentUserId = currentUserId!!,
                                 onLongPress = { selectedMessageId = message.id },
-                                onEmojiReact = { emoji -> onEmojiReact(message.id, emoji) }
+                                onEmojiReact = { emoji -> onEmojiReact(message.id, emoji) },
+                                // *** NEW: Set reply message on swipe ***
+                                onSwipeToReply = { onSetReplyToMessage(message) }
                             )
                         } else {
                             // Log or handle messages without an ID if necessary
@@ -176,7 +181,9 @@ fun ChatScreen(
                         photoPickerLauncher.launch(
                             PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
                         )
-                    }
+                    },
+                    replyToMessage = replyToMessage,
+                    onCancelReply = { onSetReplyToMessage(null) }
                 )
             }
             if (isUploading) {
@@ -252,18 +259,20 @@ private fun NormalTopBar(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 val displayName: String
                 val avatarUrl: String
-                    if (conversation.group) {
-                        displayName = conversation.name
-                        avatarUrl = "https://ui-avatars.com/api/?name=${
-                            conversation.name.replace(" ", "+")
-                        }&background=random"
-                    } else {
-                        val otherUserId = conversation.participants.keys.firstOrNull { it != currentUserId }
-                        val otherUser = usersById[otherUserId]
+                if (conversation.group) {
+                    displayName = conversation.name
+                    avatarUrl = "https://ui-avatars.com/api/?name=${
+                        conversation.name.replace(" ", "+")
+                    }&background=random"
+                } else {
+                    val otherUserId =
+                        conversation.participants.keys.firstOrNull { it != currentUserId }
+                    val otherUser = usersById[otherUserId]
 
-                        displayName = otherUser?.name ?: "Unknown"
-                        avatarUrl = otherUser?.resolveAvatarUrl() ?: "https://ui-avatars.com/api/?name=?"
-                    }
+                    displayName = otherUser?.name ?: "Unknown"
+                    avatarUrl =
+                        otherUser?.resolveAvatarUrl() ?: "https://ui-avatars.com/api/?name=?"
+                }
 
                 AsyncImage(
                     model = avatarUrl,

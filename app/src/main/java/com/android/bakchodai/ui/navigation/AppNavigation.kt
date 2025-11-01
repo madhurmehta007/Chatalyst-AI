@@ -176,6 +176,7 @@ fun AppNavigation() {
                     val typingUsers by chatViewModel.typingUsers.collectAsState()
                     val isLoading by chatViewModel.isLoading.collectAsState()
                     val isUploading by chatViewModel.isUploading.collectAsState()
+                    val replyToMessage by chatViewModel.replyToMessage.collectAsState()
                     if (isLoading) {
                         // State 1: We are actively loading the conversation
                         Box(
@@ -219,7 +220,11 @@ fun AppNavigation() {
                             onDeleteGroup = {
                                 chatViewModel.deleteGroup(conversationId)
                             },
-                            onBack = { navController.popBackStack() }
+                            onBack = { navController.popBackStack() },
+                            replyToMessage = replyToMessage,
+                            onSetReplyToMessage = { message ->
+                                chatViewModel.setReplyToMessage(message)
+                            }
                         )
                     }
                 }

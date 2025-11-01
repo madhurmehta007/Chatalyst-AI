@@ -15,6 +15,7 @@ import com.google.firebase.database.ktx.database
 import com.google.firebase.ktx.Firebase
 import com.google.firebase.storage.FirebaseStorage
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -47,6 +48,9 @@ class ChatViewModel @Inject constructor(
     private val _isUploading = MutableStateFlow(false)
     val isUploading: StateFlow<Boolean> = _isUploading.asStateFlow()
 
+    private val _replyToMessage = MutableStateFlow<Message?>(null)
+    val replyToMessage: StateFlow<Message?> = _replyToMessage.asStateFlow()
+
     private val currentUserId = Firebase.auth.currentUser?.uid
 
     init {
@@ -73,16 +77,16 @@ class ChatViewModel @Inject constructor(
     }
 
     fun loadConversation(conversationId: String) {
-        _isLoading.value = true
-        _conversation.value = null // Clear old conversation immediately
-
         viewModelScope.launch {
             repository.getConversationFlow(conversationId).collectLatest { conv ->
                 _conversation.value = conv
-                // Only set loading false *after* the first emission, even if null
-                if (_isLoading.value) { // Avoid setting false repeatedly
+                if (_isLoading.value) {
                     _isLoading.value = false
                     Log.d("ChatViewModel", "Conversation $conversationId loaded (exists: ${conv != null})")
+                }
+
+                if (conv != null) {
+                    markMessagesAsRead(conv)
                 }
             }
         }
@@ -90,16 +94,21 @@ class ChatViewModel @Inject constructor(
 
     fun sendMessage(conversationId: String, text: String) {
         val currentUser = Firebase.auth.currentUser ?: return
+        val replyingTo = _replyToMessage.value
+
         val userMessage = Message(
             senderId = currentUser.uid,
             content = text,
-            timestamp = System.currentTimeMillis()
+            timestamp = System.currentTimeMillis(),
+            replyToMessageId = replyingTo?.id,
+            replyPreview = replyingTo?.content,
+            replySenderName = users.value.find { it.uid == replyingTo?.senderId }?.name
         )
 
         viewModelScope.launch {
             repository.addMessage(conversationId, userMessage)
             Log.d("ChatViewModel", "User message sent to repo: ${userMessage.content}")
-
+            _replyToMessage.value = null
             val currentConvoState = _conversation.value
             val isOneToOneAiChat = currentConvoState != null && !currentConvoState.group && currentConvoState.participants.keys.any { it.startsWith("ai_") }
             Log.d("ChatViewModel", "Is 1-to-1 AI chat? $isOneToOneAiChat")
@@ -146,6 +155,9 @@ class ChatViewModel @Inject constructor(
         }
     }
 
+    fun setReplyToMessage(message: Message?) {
+        _replyToMessage.value = message
+    }
     fun addEmojiReaction(conversationId: String, messageId: String, emoji: String) {
         val currentUser = Firebase.auth.currentUser ?: return
         viewModelScope.launch {
@@ -163,6 +175,21 @@ class ChatViewModel @Inject constructor(
                 }
             } catch (e: Exception) {
                 Log.e("ChatViewModel", "Failed to update emoji reaction", e)
+            }
+        }
+    }
+
+    private fun markMessagesAsRead(conversation: Conversation) {
+        val userId = currentUserId ?: return
+
+        viewModelScope.launch(Dispatchers.IO) {
+            // Find all messages that are NOT from me and NOT yet read by me
+            val unreadMessageIds = conversation.messages.values
+                .filter { it.senderId != userId && !it.readBy.containsKey(userId) }
+                .map { it.id }
+
+            if (unreadMessageIds.isNotEmpty()) {
+                repository.markMessagesAsRead(conversation.id, unreadMessageIds, userId)
             }
         }
     }

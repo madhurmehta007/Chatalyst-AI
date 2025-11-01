@@ -153,8 +153,7 @@ class FirebaseConversationRepository : ConversationRepository {
                         senderId = speakingAi,
                         content = response,
                         timestamp = System.currentTimeMillis(),
-                        type = MessageType.TEXT,
-                        status = MessageStatus.SENT
+                        type = MessageType.TEXT
                     )
 
                     // *** CRITICAL LOOP FIX ***
@@ -367,6 +366,24 @@ class FirebaseConversationRepository : ConversationRepository {
             Log.d("Repo", "FCM Token updated in Firebase for: $uid")
         } catch (e: Exception) {
             Log.e("Repo", "Failed to update FCM token in Firebase", e)
+        }
+    }
+
+    override suspend fun markMessagesAsRead(conversationId: String, messageIds: List<String>, userId: String) {
+        if (messageIds.isEmpty()) return
+
+        val updates = mutableMapOf<String, Any?>()
+        val readTimestamp = System.currentTimeMillis()
+
+        messageIds.forEach { msgId ->
+            updates["/conversations/$conversationId/messages/$msgId/readBy/$userId"] = readTimestamp
+        }
+
+        try {
+            database.updateChildren(updates).await()
+            Log.d("Repo", "Marked ${messageIds.size} messages as read by $userId")
+        } catch (e: Exception) {
+            Log.e("Repo", "Failed to mark messages as read", e)
         }
     }
 
