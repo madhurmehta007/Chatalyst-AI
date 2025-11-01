@@ -362,6 +362,15 @@ class FirebaseConversationRepository : ConversationRepository {
         presenceRef.child("lastSeen").onDisconnect().setValue(System.currentTimeMillis())
     }
 
+    override suspend fun updateUserFcmToken(uid: String, token: String) {
+        try {
+            database.child("users").child(uid).child("fcmToken").setValue(token).await()
+            Log.d("Repo", "FCM Token updated in Firebase for: $uid")
+        } catch (e: Exception) {
+            Log.e("Repo", "Failed to update FCM token in Firebase", e)
+        }
+    }
+
     override suspend fun clearAllLocalData() {
     }
 }

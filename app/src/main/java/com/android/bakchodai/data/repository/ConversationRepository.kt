@@ -33,4 +33,6 @@ interface ConversationRepository {
     suspend fun updateUserPresence(uid: String, isOnline: Boolean)
 
     fun setOfflineOnDisconnect(uid: String)
+
+    suspend fun updateUserFcmToken(uid: String, token: String)
 }

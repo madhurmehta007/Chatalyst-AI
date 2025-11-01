@@ -15,6 +15,7 @@ import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.auth.ktx.userProfileChangeRequest
 import com.google.firebase.ktx.Firebase
+import com.google.firebase.messaging.FirebaseMessaging
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -103,6 +104,7 @@ class AuthViewModel @Inject constructor(private val repository: ConversationRepo
                 result.user?.let { firebaseUser ->
                     _user.value = firebaseUser
                     _authState.value = AuthState.LOGGED_IN
+                    getAndSaveFcmToken(firebaseUser.uid)
                 }
             } catch (e: Exception) {
                 // ... (error handling remains the same) ...
@@ -145,6 +147,10 @@ class AuthViewModel @Inject constructor(private val repository: ConversationRepo
 
                     firebaseUser.reload().await()
 
+                    val token = try {
+                        FirebaseMessaging.getInstance().token.await()
+                    } catch (e: Exception) { "" }
+
                     val encodedName = try {
                         URLEncoder.encode(name, "UTF-8")
                     } catch (e: Exception) {
@@ -156,8 +162,9 @@ class AuthViewModel @Inject constructor(private val repository: ConversationRepo
                         uid = firebaseUser.uid,
                         name = name,
                         avatarUrl = avatarUrl,
-                        isOnline = true, // Set to online on creation
-                        lastSeen = System.currentTimeMillis() // Set timestamp
+                        isOnline = true,
+                        lastSeen = System.currentTimeMillis(),
+                        fcmToken = token
                     )
                     repository.addUser(newUser)
 
@@ -181,6 +188,15 @@ class AuthViewModel @Inject constructor(private val repository: ConversationRepo
                 _isLoading.value = false
                 isProcessingAuthAction = false
             }
+        }
+    }
+
+    private suspend fun getAndSaveFcmToken(uid: String) {
+        try {
+            val token = FirebaseMessaging.getInstance().token.await()
+            repository.updateUserFcmToken(uid, token)
+        } catch (e: Exception) {
+            _errorEvent.emit("Could not register device for notifications.")
         }
     }
 

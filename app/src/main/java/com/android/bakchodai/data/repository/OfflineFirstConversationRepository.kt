@@ -383,17 +383,26 @@ class OfflineFirstConversationRepository @Inject constructor(
         presenceRef.child("lastSeen").onDisconnect().setValue(System.currentTimeMillis())
     }
 
+    override suspend fun updateUserFcmToken(uid: String, token: String) {
+        try {
+            database.child("users").child(uid).child("fcmToken").setValue(token).await()
+            Log.d("Repo", "FCM Token updated in Firebase for: $uid")
+        } catch (e: Exception) {
+            Log.e("Repo", "Failed to update FCM token in Firebase", e)
+        }
+    }
+
     private fun User.toEntity() = UserEntity(
         uid, name, avatarUrl, personality,
         // Add new fields
         backgroundStory, interests, speakingStyle,
-        isOnline, lastSeen
+        isOnline, lastSeen,fcmToken
     )
     private fun UserEntity.toModel() = User(
         uid, name, avatarUrl, personality,
         // Add new fields
         backgroundStory, interests, speakingStyle,
-        isOnline, lastSeen
+        isOnline, lastSeen,fcmToken
     )
     private fun Conversation.toEntity() = ConversationEntity(id, name, participants, messages, group, topic, typing)
     private fun ConversationEntity.toModel() = Conversation(id, name, participants, messages, isGroup, topic, typing)

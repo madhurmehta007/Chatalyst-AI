@@ -15,8 +15,9 @@ data class UserEntity(
     val backgroundStory: String,
     val interests: String,
     val speakingStyle: String,
-    val isOnline: Boolean, // NEW
-    val lastSeen: Long // NEW
+    val isOnline: Boolean,
+    val lastSeen: Long,
+    val fcmToken: String = ""
 )
 
 @Entity(tableName = "conversations")
@@ -24,7 +25,7 @@ data class ConversationEntity(
     @PrimaryKey val id: String,
     val name: String,
     val participants: Map<String, Boolean>,
-    val messages: Map<String, Message>, // Stored as JSON
+    val messages: Map<String, Message>,
     val isGroup: Boolean,
     val topic: String,
     val typing: Map<String, Boolean>
