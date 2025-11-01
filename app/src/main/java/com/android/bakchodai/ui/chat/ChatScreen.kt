@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -21,10 +22,13 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -38,6 +42,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -50,6 +56,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
@@ -76,7 +84,10 @@ fun ChatScreen(
     onBack: () -> Unit,
     typingUsers: List<User>,
     replyToMessage: Message?,
-    onSetReplyToMessage: (Message?) -> Unit
+    onSetReplyToMessage: (Message?) -> Unit,
+    filteredMessages: List<Message>,
+    searchQuery: String,
+    onSearchQueryChanged: (String) -> Unit
 ) {
     val usersById = users.associateBy { it.uid }
     val currentUserId = Firebase.auth.currentUser?.uid
@@ -86,6 +97,7 @@ fun ChatScreen(
     var selectedMessageId by remember { mutableStateOf<String?>(null) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showDeleteGroupDialog by remember { mutableStateOf(false) }
+    var isSearchActive by remember { mutableStateOf(false) }
 
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia(),
@@ -104,6 +116,16 @@ fun ChatScreen(
         topBar = {
             // *** Conditionally show the correct TopAppBar ***
             if (selectedMessageId == null) {
+                if (isSearchActive) {
+                    SearchTopBar(
+                        query = searchQuery,
+                        onQueryChange = onSearchQueryChanged,
+                        onClose = {
+                            isSearchActive = false
+                            onSearchQueryChanged("") // Clear search
+                        }
+                    )
+                } else {
                 NormalTopBar(
                     conversation = conversation,
                     usersById = usersById,
@@ -111,8 +133,10 @@ fun ChatScreen(
                     typingUsers = typingUsers, // MODIFIED: Pass new list
                     onBack = onBack,
                     onNavigateToEditGroup = onNavigateToEditGroup,
-                    onShowDeleteGroupDialog = { showDeleteGroupDialog = true }
+                    onShowDeleteGroupDialog = { showDeleteGroupDialog = true },
+                    onSearchClick = { isSearchActive = true }
                 )
+                }
             } else {
                 ContextualTopBar(
                     onClose = { selectedMessageId = null },
@@ -141,7 +165,7 @@ fun ChatScreen(
                     reverseLayout = true,
                     contentPadding = PaddingValues(vertical = 8.dp)
                 ) {
-                    items(messages, key = { it.id }) { message ->
+                    items(filteredMessages, key = { it.id }) { message ->
                         val sender = usersById[message.senderId] ?: User(
                             uid = message.senderId,
                             name = "Unknown"
@@ -241,7 +265,8 @@ private fun NormalTopBar(
     typingUsers: List<User>,
     onNavigateToEditGroup: () -> Unit,
     onBack: () -> Unit,
-    onShowDeleteGroupDialog: () -> Unit
+    onShowDeleteGroupDialog: () -> Unit,
+    onSearchClick: () -> Unit
 ) {
     val context = LocalContext.current
     TopAppBar(
@@ -312,6 +337,9 @@ private fun NormalTopBar(
             }
         },
         actions = {
+            IconButton(onClick = onSearchClick) {
+                Icon(Icons.Default.Search, contentDescription = "Search Chat")
+            }
             val otherUserId =
                 if (conversation.group) null else conversation.participants.keys.firstOrNull { it != currentUserId }
             val otherUser = otherUserId?.let { usersById[it] }
@@ -411,6 +439,46 @@ private fun ContextualTopBar(
         },
         colors = TopAppBarDefaults.topAppBarColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant
+        )
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SearchTopBar(
+    query: String,
+    onQueryChange: (String) -> Unit,
+    onClose: () -> Unit
+) {
+    val focusManager = LocalFocusManager.current
+    TopAppBar(
+        title = {
+            TextField(
+                value = query,
+                onValueChange = onQueryChange,
+                placeholder = { Text("Search...", color = Color.Gray) },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = Color.Transparent,
+                    unfocusedContainerColor = Color.Transparent,
+                    focusedIndicatorColor = Color.Transparent,
+                    unfocusedIndicatorColor = Color.Transparent,
+                    cursorColor = MaterialTheme.colorScheme.onSurface
+                ),
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                keyboardActions = KeyboardActions(onSearch = {
+                    focusManager.clearFocus()
+                })
+            )
+        },
+        navigationIcon = {
+            IconButton(onClick = onClose) {
+                Icon(Icons.Default.ArrowBack, contentDescription = "Close Search")
+            }
+        },
+        colors = TopAppBarDefaults.topAppBarColors(
+            containerColor = MaterialTheme.colorScheme.surface
         )
     )
 }

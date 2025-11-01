@@ -176,6 +176,8 @@ fun AppNavigation() {
                     val isLoading by chatViewModel.isLoading.collectAsState()
                     val isUploading by chatViewModel.isUploading.collectAsState()
                     val replyToMessage by chatViewModel.replyToMessage.collectAsState()
+                    val searchQuery by chatViewModel.searchQuery.collectAsState()
+                    val filteredMessages by chatViewModel.filteredMessages.collectAsState()
                     if (isLoading) {
                         Box(
                             modifier = Modifier.fillMaxSize(),
@@ -219,6 +221,11 @@ fun AppNavigation() {
                             replyToMessage = replyToMessage,
                             onSetReplyToMessage = { message ->
                                 chatViewModel.setReplyToMessage(message)
+                            },
+                            filteredMessages = filteredMessages,
+                            searchQuery = searchQuery,
+                            onSearchQueryChanged = { query ->
+                                chatViewModel.onSearchQueryChanged(query)
                             }
                         )
                     }

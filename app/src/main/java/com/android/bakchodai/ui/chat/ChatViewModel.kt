@@ -17,10 +17,12 @@ import com.google.firebase.storage.FirebaseStorage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import java.util.UUID
@@ -50,6 +52,9 @@ class ChatViewModel @Inject constructor(
 
     private val _replyToMessage = MutableStateFlow<Message?>(null)
     val replyToMessage: StateFlow<Message?> = _replyToMessage.asStateFlow()
+
+    private val _searchQuery = MutableStateFlow("")
+    val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
 
     private val currentUserId = Firebase.auth.currentUser?.uid
 
@@ -177,6 +182,27 @@ class ChatViewModel @Inject constructor(
                 Log.e("ChatViewModel", "Failed to update emoji reaction", e)
             }
         }
+    }
+
+    val filteredMessages: StateFlow<List<Message>> =
+        combine(_conversation, _searchQuery) { conversation, query ->
+            if (conversation == null) {
+                emptyList()
+            } else {
+                val allMessages = conversation.messages.values.sortedByDescending { it.timestamp }
+                if (query.isBlank()) {
+                    allMessages
+                } else {
+                    allMessages.filter {
+                        it.content.contains(query, ignoreCase = true)
+                    }
+                }
+            }
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+
+    fun onSearchQueryChanged(query: String) {
+        _searchQuery.value = query
     }
 
     private fun markMessagesAsRead(conversation: Conversation) {
