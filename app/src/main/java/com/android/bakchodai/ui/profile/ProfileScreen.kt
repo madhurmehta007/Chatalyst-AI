@@ -1,19 +1,43 @@
-// file: bakchodai/ui/profile/ProfileScreen.kt
 package com.android.bakchodai.ui.profile
 
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Brightness6
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ExitToApp
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.Divider
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -21,7 +45,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
@@ -35,9 +58,11 @@ fun ProfileScreen(
     user: User?,
     onSaveClick: (String) -> Unit,
     onLogoutClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onSaveBio: (String) -> Unit,
 ) {
     var name by remember(user) { mutableStateOf(user?.name ?: "") }
+    var bio by remember(user) { mutableStateOf(user?.bio ?: "") }
     val avatarUrl by remember(user) {
         mutableStateOf(user?.resolveAvatarUrl() ?: "https://ui-avatars.com/api/?name=?")
     }
@@ -46,19 +71,18 @@ fun ProfileScreen(
     val scope = rememberCoroutineScope()
     val isDarkTheme by ThemeHelper.isDarkTheme(context).collectAsState(initial = false)
 
-    // State for showing the edit name dialog
     var showEditNameDialog by remember { mutableStateOf(false) }
+    var showEditBioDialog by remember { mutableStateOf(false) }
 
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background), // Use theme background
+            .background(MaterialTheme.colorScheme.background),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Top
     ) {
         Spacer(modifier = Modifier.height(32.dp))
 
-        // Profile Picture
         AsyncImage(
             model = avatarUrl,
             contentDescription = "Profile Picture",
@@ -73,8 +97,6 @@ fun ProfileScreen(
         )
         Spacer(modifier = Modifier.height(32.dp))
 
-        // --- Settings List ---
-        // User Name
         ProfileListItem(
             icon = Icons.Default.Person,
             title = "Name",
@@ -89,9 +111,24 @@ fun ProfileScreen(
             }
         )
 
-        Divider(modifier = Modifier.padding(horizontal = 16.dp))
+        Spacer(modifier = Modifier.padding(horizontal = 16.dp))
 
-        // Dark Mode Toggle
+        ProfileListItem(
+            icon = Icons.Default.Info,
+            title = "About",
+            subtitle = user?.bio?.ifBlank { "Tap to add bio" } ?: "Loading...",
+            onClick = { showEditBioDialog = true },
+            trailingContent = {
+                Icon(
+                    Icons.Default.Edit,
+                    contentDescription = "Edit Bio",
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
+        )
+
+        Spacer(modifier = Modifier.padding(horizontal = 16.dp))
+
         ProfileListItem(
             icon = Icons.Default.Brightness6,
             title = "Dark Mode",
@@ -113,21 +150,19 @@ fun ProfileScreen(
             }
         )
 
-        Spacer(modifier = Modifier.weight(1f)) // Pushes logout to bottom
+        Spacer(modifier = Modifier.weight(1f))
 
-        // Logout Button
         ProfileListItem(
             icon = Icons.Default.ExitToApp,
             title = "Logout",
             subtitle = "",
             onClick = onLogoutClick,
-            titleColor = MaterialTheme.colorScheme.error // Make logout red
+            titleColor = MaterialTheme.colorScheme.error
         )
 
         Spacer(modifier = Modifier.height(32.dp))
     }
 
-    // --- Edit Name Dialog ---
     if (showEditNameDialog) {
         AlertDialog(
             onDismissRequest = { showEditNameDialog = false },
@@ -150,8 +185,39 @@ fun ProfileScreen(
             },
             dismissButton = {
                 TextButton(onClick = {
-                    name = user?.name ?: "" // Reset name if cancelled
+                    name = user?.name ?: ""
                     showEditNameDialog = false
+                }) { Text("Cancel") }
+            }
+        )
+    }
+
+    if (showEditBioDialog) {
+        AlertDialog(
+            onDismissRequest = { showEditBioDialog = false },
+            title = { Text("Edit Bio") },
+            text = {
+                OutlinedTextField(
+                    value = bio,
+                    onValueChange = { bio = it },
+                    label = { Text("About") },
+                    modifier = Modifier.height(100.dp),
+                    maxLines = 3
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        onSaveBio(bio)
+                        Toast.makeText(context, "Bio Saved!", Toast.LENGTH_SHORT).show()
+                        showEditBioDialog = false
+                    }
+                ) { Text("Save") }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    bio = user?.bio ?: ""
+                    showEditBioDialog = false
                 }) { Text("Cancel") }
             }
         )
@@ -177,7 +243,7 @@ private fun ProfileListItem(
         Icon(
             imageVector = icon,
             contentDescription = title,
-            tint = MaterialTheme.colorScheme.primary, // Use primary color for icons
+            tint = MaterialTheme.colorScheme.primary,
             modifier = Modifier.size(24.dp)
         )
         Spacer(modifier = Modifier.width(24.dp))

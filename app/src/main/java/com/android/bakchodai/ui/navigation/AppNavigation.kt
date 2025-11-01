@@ -96,6 +96,7 @@ fun AppNavigation() {
                         ProfileScreen(
                             user = user,
                             onSaveClick = { newName -> authViewModel.updateUserName(newName) },
+                            onSaveBio = { newBio -> authViewModel.updateUserBio(newBio) },
                             onLogoutClick = { authViewModel.logout() },
                             modifier = Modifier.padding(paddingValues)
                         )

@@ -33,6 +33,7 @@ interface ConversationRepository {
 
     fun setOfflineOnDisconnect(uid: String)
 
+    suspend fun updateUserBio(uid: String, newBio: String)
     suspend fun markMessagesAsRead(conversationId: String, messageIds: List<String>, userId: String)
 
     suspend fun updateUserFcmToken(uid: String, token: String)

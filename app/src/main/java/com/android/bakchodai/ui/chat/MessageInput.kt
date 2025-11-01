@@ -53,7 +53,6 @@ fun MessageInput(
             .fillMaxWidth()
             .padding(8.dp)
     ) {
-        // --- Reply Preview Section ---
         AnimatedVisibility(
             visible = replyToMessage != null,
             enter = expandVertically(),
@@ -91,7 +90,6 @@ fun MessageInput(
             }
         }
 
-        // --- Input Row ---
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically

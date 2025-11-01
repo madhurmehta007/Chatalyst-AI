@@ -221,4 +221,15 @@ class AuthViewModel @Inject constructor(private val repository: ConversationRepo
             }
         }
     }
+
+    fun updateUserBio(newBio: String) {
+        viewModelScope.launch {
+            val firebaseUser = auth.currentUser ?: return@launch
+            try {
+                repository.updateUserBio(firebaseUser.uid, newBio)
+            } catch (e: Exception) {
+                _errorEvent.emit("Failed to update bio. Please try again.")
+            }
+        }
+    }
 }

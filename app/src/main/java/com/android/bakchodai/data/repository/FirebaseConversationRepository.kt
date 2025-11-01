@@ -366,6 +366,15 @@ class FirebaseConversationRepository : ConversationRepository {
         }
     }
 
+    override suspend fun updateUserBio(uid: String, newBio: String) {
+        try {
+            database.child("users").child(uid).child("bio").setValue(newBio).await()
+            Log.d("Repo", "User bio updated in Firebase for: $uid")
+        } catch (e: Exception) {
+            Log.e("Repo", "Failed to update user bio in Firebase", e)
+        }
+    }
+
     override suspend fun clearAllLocalData() {
     }
 }

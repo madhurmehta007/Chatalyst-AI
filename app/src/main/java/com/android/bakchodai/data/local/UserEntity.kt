@@ -17,7 +17,8 @@ data class UserEntity(
     val speakingStyle: String,
     val isOnline: Boolean,
     val lastSeen: Long,
-    val fcmToken: String = ""
+    val fcmToken: String = "",
+    val bio: String = ""
 )
 
 @Entity(tableName = "conversations")

@@ -151,7 +151,7 @@ fun MessageBubble(
 
         Column(horizontalAlignment = if (isFromMe) Alignment.End else Alignment.Start) {
 
-            var isDropdownExpanded by remember { mutableStateOf(false) } // Moved here
+            var isDropdownExpanded by remember { mutableStateOf(false) }
 
             Box {
                 Box(
@@ -202,20 +202,18 @@ fun MessageBubble(
                         }
 
                         if (message.type == MessageType.IMAGE) {
-                            // Use Coil's AsyncImage to load the GIF/Image from the URL
                             AsyncImage(
-                                model = message.content, // This is the image URL
+                                model = message.content,
                                 contentDescription = "Image from ${sender.name}",
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(180.dp) // Give the image a fixed height
-                                    .clip(RoundedCornerShape(12.dp)), // Clip the image corners
+                                    .height(180.dp)
+                                    .clip(RoundedCornerShape(12.dp)),
                                 contentScale = ContentScale.Crop,
-                                placeholder = rememberVectorPainter(Icons.Filled.Image), // Placeholder icon
-                                error = rememberVectorPainter(Icons.Default.BrokenImage) // Error icon
+                                placeholder = rememberVectorPainter(Icons.Filled.Image),
+                                error = rememberVectorPainter(Icons.Default.BrokenImage)
                             )
                         } else {
-                            // This is the original Text composable
                             Text(text = message.content, color = textColor)
                         }
 

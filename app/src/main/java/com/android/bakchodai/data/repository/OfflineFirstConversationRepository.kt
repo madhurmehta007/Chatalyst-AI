@@ -381,15 +381,26 @@ class OfflineFirstConversationRepository @Inject constructor(
         }
     }
 
+    override suspend fun updateUserBio(uid: String, newBio: String) {
+        try {
+            database.child("users").child(uid).child("bio").setValue(newBio).await()
+            Log.d("Repo", "User bio updated in Firebase for: $uid")
+        } catch (e: Exception) {
+            Log.e("Repo", "Failed to update user bio in Firebase", e)
+        }
+    }
+
     private fun User.toEntity() = UserEntity(
         uid, name, avatarUrl, personality,
         backgroundStory, interests, speakingStyle,
-        isOnline, lastSeen,fcmToken
+        isOnline, lastSeen,fcmToken,
+        bio
     )
     private fun UserEntity.toModel() = User(
         uid, name, avatarUrl, personality,
         backgroundStory, interests, speakingStyle,
-        isOnline, lastSeen,fcmToken
+        isOnline, lastSeen,fcmToken,
+        bio
     )
     private fun Conversation.toEntity() = ConversationEntity(id, name, participants, messages, group, topic, typing)
     private fun ConversationEntity.toModel() = Conversation(id, name, participants, messages, isGroup, topic, typing)
