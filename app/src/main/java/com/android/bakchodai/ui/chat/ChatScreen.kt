@@ -2,6 +2,7 @@ package com.android.bakchodai.ui.chat
 
 import android.net.Uri
 import android.util.Log
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -249,19 +250,20 @@ private fun NormalTopBar(
     TopAppBar(
         title = {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                val avatarUrl = if (!conversation.group) {
-                    val otherUserId =
-                        conversation.participants.keys.firstOrNull { it != currentUserId }
-                    usersById[otherUserId]?.resolveAvatarUrl()
-                        ?: "https://ui-avatars.com/api/?name=?"
-                } else {
-                    "https://ui-avatars.com/api/?name=${
-                        conversation.name.replace(
-                            " ",
-                            "+"
-                        )
-                    }&background=random"
-                }
+                val displayName: String
+                val avatarUrl: String
+                    if (conversation.group) {
+                        displayName = conversation.name
+                        avatarUrl = "https://ui-avatars.com/api/?name=${
+                            conversation.name.replace(" ", "+")
+                        }&background=random"
+                    } else {
+                        val otherUserId = conversation.participants.keys.firstOrNull { it != currentUserId }
+                        val otherUser = usersById[otherUserId]
+
+                        displayName = otherUser?.name ?: "Unknown"
+                        avatarUrl = otherUser?.resolveAvatarUrl() ?: "https://ui-avatars.com/api/?name=?"
+                    }
 
                 AsyncImage(
                     model = avatarUrl,
@@ -275,12 +277,11 @@ private fun NormalTopBar(
 
                 Column {
                     Text(
-                        text = conversation.name,
+                        text = displayName,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
 
-                    // --- NEW TYPING LOGIC ---
                     val typingText = when {
                         typingUsers.isNotEmpty() -> {
                             // If more than 2, show "several people..."
@@ -316,6 +317,9 @@ private fun NormalTopBar(
             }
         },
         actions = {
+            val otherUserId =
+                if (conversation.group) null else conversation.participants.keys.firstOrNull { it != currentUserId }
+            val otherUser = otherUserId?.let { usersById[it] }
             if (conversation.group) {
                 var isGroupMenuExpanded by remember { mutableStateOf(false) }
                 IconButton(onClick = { isGroupMenuExpanded = true }) {
@@ -337,6 +341,40 @@ private fun NormalTopBar(
                         onClick = {
                             onShowDeleteGroupDialog()
                             isGroupMenuExpanded = false
+                        }
+                    )
+                }
+            } else if (otherUser != null && !otherUser.uid.startsWith("ai_")) {
+                var isUserMenuExpanded by remember { mutableStateOf(false) }
+                IconButton(onClick = { isUserMenuExpanded = true }) {
+                    Icon(Icons.Default.MoreVert, contentDescription = "Chat Options")
+                }
+                DropdownMenu(
+                    expanded = isUserMenuExpanded,
+                    onDismissRequest = { isUserMenuExpanded = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("Block User", color = MaterialTheme.colorScheme.error) },
+                        onClick = {
+                            // TODO: Implement blocking logic
+                            Toast.makeText(
+                                context,
+                                "User blocked (Not Implemented)",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                            isUserMenuExpanded = false
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Report User", color = MaterialTheme.colorScheme.error) },
+                        onClick = {
+                            // TODO: Implement reporting logic
+                            Toast.makeText(
+                                context,
+                                "User reported (Not Implemented)",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                            isUserMenuExpanded = false
                         }
                     )
                 }

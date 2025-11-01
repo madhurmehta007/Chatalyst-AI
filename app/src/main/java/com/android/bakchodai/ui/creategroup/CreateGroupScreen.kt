@@ -141,7 +141,7 @@ fun CreateGroupScreen(
                 LazyColumn(modifier = Modifier.weight(1f)) {
                     item {
                         Text(
-                            "Select AI Characters",
+                            "Add Members",
                             style = MaterialTheme.typography.titleSmall,
                             modifier = Modifier.padding(16.dp)
                         )
@@ -264,8 +264,13 @@ private fun SelectableUserListItem(
                 color = MaterialTheme.colorScheme.onSurface
             )
             Spacer(Modifier.height(4.dp))
+            val subtitle = if (user.uid.startsWith("ai_")) {
+                user.personality.ifBlank { "AI Character" }
+            } else {
+                "Human User"
+            }
             Text(
-                text = user.personality.ifBlank { "AI Character" },
+                text = subtitle,
                 fontWeight = FontWeight.Normal,
                 fontSize = 14.sp,
                 color = Color.Gray

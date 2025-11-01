@@ -215,10 +215,9 @@ class FirebaseConversationRepository : ConversationRepository {
         database.child("users").child(uid).child("name").setValue(newName).await()
     }
 
-    override suspend fun createGroup(name: String, participantIds: List<String>, topic: String): String {
+    override suspend fun createGroup(name: String, participantIds: List<String>, topic: String, isGroup: Boolean): String {
         val conversationId = database.child("conversations").push().key!!
         val participants = participantIds.associateWith { true }
-        val isGroup = participantIds.size > 2 || topic.isNotBlank()
 
         val conversationName = if (!isGroup) {
             val currentUserId = Firebase.auth.currentUser?.uid ?: ""

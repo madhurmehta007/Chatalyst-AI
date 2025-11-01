@@ -31,13 +31,13 @@ fun NewChatScreen(
     users: List<User>,
     isLoading: Boolean,
     onUserClick: (User) -> Unit,
-    onAddAiClick: () -> Unit, // New navigation lambda
+    onAddAiClick: () -> Unit,
     onBack: () -> Unit
 ) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Select AI Character") }, // Updated title
+                title = { Text("New Chat") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
@@ -119,13 +119,19 @@ private fun UserListItem(
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = user.name,
-                fontWeight = FontWeight.SemiBold, // Slightly bolder
+                fontWeight = FontWeight.SemiBold,
                 fontSize = 17.sp,
                 color = MaterialTheme.colorScheme.onSurface
             )
             Spacer(Modifier.height(4.dp))
+
+            val subtitle = if (user.uid.startsWith("ai_")) {
+                user.personality.ifBlank { "AI Character" }
+            } else {
+                "Human User" // In the future, this could be user.bio or "Tap to chat!"
+            }
             Text(
-                text = user.personality.ifBlank { "AI Character" }, // Show personality
+                text = subtitle,
                 fontWeight = FontWeight.Normal,
                 fontSize = 14.sp,
                 color = Color.Gray

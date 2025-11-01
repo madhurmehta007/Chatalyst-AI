@@ -22,10 +22,12 @@ class CreateGroupViewModel @Inject constructor(private val repository: Conversat
     private val _isLoading = MutableStateFlow(true)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
+    private val currentUserId = Firebase.auth.currentUser?.uid
+
     val users: StateFlow<List<User>> = repository.getUsersFlow()
         .map { users ->
             _isLoading.value = false
-            users.filter { it.uid.startsWith("ai_") }
+            users.filter { it.uid != currentUserId }
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
@@ -36,7 +38,12 @@ class CreateGroupViewModel @Inject constructor(private val repository: Conversat
         viewModelScope.launch {
             val currentUser = Firebase.auth.currentUser ?: return@launch
             val allParticipantIds = participantIds + currentUser.uid
-            val conversationId = repository.createGroup(name, allParticipantIds, topic)
+            val conversationId = repository.createGroup(
+                name,
+                allParticipantIds,
+                topic,
+                isGroup = true
+            )
             _groupCreated.value = conversationId
         }
     }

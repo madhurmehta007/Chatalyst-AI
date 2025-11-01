@@ -77,13 +77,4 @@ class MainViewModel @Inject constructor(private val repository: ConversationRepo
         }
     }
 
-    fun createGroup(name: String, participantIds: List<String>, topic: String) {
-        viewModelScope.launch {
-            val currentUserId = auth.currentUser?.uid
-            if (currentUserId != null) {
-                val allParticipantIds = participantIds + currentUserId
-                repository.createGroup(name, allParticipantIds, topic)
-            }
-        }
-    }
 }

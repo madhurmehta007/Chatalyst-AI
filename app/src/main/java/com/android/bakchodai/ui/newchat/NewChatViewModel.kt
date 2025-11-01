@@ -22,33 +22,37 @@ class NewChatViewModel @Inject constructor(private val repository: ConversationR
     private val _isLoading = MutableStateFlow(true)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
+    private val currentUserId = Firebase.auth.currentUser?.uid
+
     val users: StateFlow<List<User>> = repository.getUsersFlow()
         .map { users ->
             _isLoading.value = false
-            users.filter { it.uid.startsWith("ai_") }
+            // *** MODIFICATION: Filter out the current user, but show all others ***
+            users.filter { it.uid != currentUserId }
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     private val _navigateToConversation = MutableStateFlow<String?>(null)
     val navigateToConversation: StateFlow<String?> = _navigateToConversation
 
-    fun findOrCreateConversation(aiUser: User) {
+    fun findOrCreateConversation(user: User) {
         viewModelScope.launch {
             val currentUser = Firebase.auth.currentUser ?: return@launch
             val currentUserId = currentUser.uid
 
             val existingConversations = repository.getConversations()
             val existingChat = existingConversations.firstOrNull {
-                !it.group && it.participants.containsKey(currentUserId) && it.participants.containsKey(aiUser.uid)
+                !it.group && it.participants.containsKey(currentUserId) && it.participants.containsKey(user.uid)
             }
 
             if (existingChat != null) {
                 _navigateToConversation.value = existingChat.id
             } else {
                 val newConversationId = repository.createGroup(
-                    name = aiUser.name,
-                    participantIds = listOf(currentUserId, aiUser.uid),
-                    topic = ""
+                    name = user.name,
+                    participantIds = listOf(currentUserId, user.uid),
+                    topic = "",
+                    isGroup = false
                 )
                 _navigateToConversation.value = newConversationId
             }

@@ -15,7 +15,7 @@ interface ConversationRepository {
     suspend fun getUsers(): List<User>
 
     suspend fun addMessage(conversationId: String, message: Message)
-    suspend fun createGroup(name: String, participantIds: List<String>, topic: String): String
+    suspend fun createGroup(name: String, participantIds: List<String>, topic: String, isGroup: Boolean): String
     suspend fun addUser(user: User)
     suspend fun updateUserName(uid: String, newName: String)
 

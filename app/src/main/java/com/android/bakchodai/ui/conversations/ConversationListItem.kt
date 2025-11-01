@@ -38,18 +38,22 @@ fun ConversationListItem(
 ) {
     val lastMessage = conversation.messages.values.maxByOrNull { it.timestamp }
     val currentUserId = Firebase.auth.currentUser?.uid
+    val displayName: String
     val (avatarUrl, placeholderIcon) = if (conversation.group) {
         // It's a group, generate avatar from group name
+        displayName = conversation.name
         Pair(
             "https://ui-avatars.com/api/?name=${conversation.name.replace(" ", "+")}&background=random",
             Icons.Filled.Group
         )
     } else {
-        // It's 1-on-1, find the other user and use their avatar
         val otherUserId = conversation.participants.keys.firstOrNull { it != currentUserId }
         val otherUser = users.find { it.uid == otherUserId }
+
+        // *** SET THE DISPLAY NAME to the other user's name ***
+        displayName = otherUser?.name ?: "Unknown User"
         Pair(
-            otherUser?.resolveAvatarUrl() ?: "https://ui-avatars.com/api/?name=?", // Use resolved URL
+            otherUser?.resolveAvatarUrl() ?: "https://ui-avatars.com/api/?name=?",
             Icons.Filled.Person
         )
     }
@@ -81,7 +85,7 @@ fun ConversationListItem(
             verticalArrangement = Arrangement.Center
         ) {
             Text(
-                text = conversation.name,
+                text = displayName,
                 fontWeight = FontWeight.Bold,
                 fontSize = 17.sp,
                 maxLines = 1,
