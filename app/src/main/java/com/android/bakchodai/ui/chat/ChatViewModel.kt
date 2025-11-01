@@ -1,16 +1,19 @@
 package com.android.bakchodai.ui.chat
 
+import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.android.bakchodai.data.model.Conversation
 import com.android.bakchodai.data.model.Message
+import com.android.bakchodai.data.model.MessageType
 import com.android.bakchodai.data.model.User
 import com.android.bakchodai.data.remote.AiService
 import com.android.bakchodai.data.repository.ConversationRepository
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.database.ktx.database
 import com.google.firebase.ktx.Firebase
+import com.google.firebase.storage.FirebaseStorage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -19,12 +22,14 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import java.util.UUID
 import javax.inject.Inject
 
 @HiltViewModel
 class ChatViewModel @Inject constructor(
     private val repository: ConversationRepository,
-    private val aiService: AiService
+    private val aiService: AiService,
+    private val storage: FirebaseStorage
 ) : ViewModel() {
 
     private val _conversation = MutableStateFlow<Conversation?>(null)
@@ -38,6 +43,9 @@ class ChatViewModel @Inject constructor(
 
     private val _isLoading = MutableStateFlow(true)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+
+    private val _isUploading = MutableStateFlow(false)
+    val isUploading: StateFlow<Boolean> = _isUploading.asStateFlow()
 
     private val currentUserId = Firebase.auth.currentUser?.uid
 
@@ -174,6 +182,40 @@ class ChatViewModel @Inject constructor(
     fun deleteGroup(conversationId: String) {
         viewModelScope.launch {
             repository.deleteGroup(conversationId)
+        }
+    }
+
+    fun sendImage(conversationId: String, imageUri: Uri) {
+        val currentUser = Firebase.auth.currentUser ?: return
+        viewModelScope.launch {
+            _isUploading.value = true
+            try {
+                // Create a unique ID for the image
+                val imageId = UUID.randomUUID().toString()
+                val storageRef = storage.reference
+                    .child("images/$conversationId/$imageId.jpg")
+
+                // 1. Upload the file to Firebase Storage
+                storageRef.putFile(imageUri).await()
+
+                // 2. Get the download URL
+                val downloadUrl = storageRef.downloadUrl.await().toString()
+
+                // 3. Create and send the message object
+                val imageMessage = Message(
+                    senderId = currentUser.uid,
+                    content = downloadUrl, // The URL is the content
+                    timestamp = System.currentTimeMillis(),
+                    type = MessageType.IMAGE // *** Set the type ***
+                )
+                repository.addMessage(conversationId, imageMessage)
+
+            } catch (e: Exception) {
+                Log.e("ChatViewModel", "Error uploading image", e)
+                // TODO: You could emit an error event here
+            } finally {
+                _isUploading.value = false
+            }
         }
     }
 }

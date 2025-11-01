@@ -167,7 +167,6 @@ fun AppNavigation() {
                 composable("chat/{conversationId}") { backStackEntry ->
                     val conversationId = backStackEntry.arguments?.getString("conversationId")!!
                     val chatViewModel: ChatViewModel = hiltViewModel()
-
                     LaunchedEffect(conversationId) {
                         chatViewModel.loadConversation(conversationId)
                     }
@@ -175,8 +174,8 @@ fun AppNavigation() {
                     val conversation by chatViewModel.conversation.collectAsState()
                     val users by chatViewModel.users.collectAsState()
                     val typingUsers by chatViewModel.typingUsers.collectAsState()
-                    val isLoading by chatViewModel.isLoading.collectAsState() // Get loading state
-
+                    val isLoading by chatViewModel.isLoading.collectAsState()
+                    val isUploading by chatViewModel.isUploading.collectAsState()
                     if (isLoading) {
                         // State 1: We are actively loading the conversation
                         Box(
@@ -196,10 +195,14 @@ fun AppNavigation() {
                         ChatScreen(
                             conversation = conversation!!,
                             users = users,
+                            isUploading = isUploading,
                             isAiTyping = false,
                             typingUsers = typingUsers,
                             onSendMessage = { message ->
                                 chatViewModel.sendMessage(conversationId, message)
+                            },
+                            onSendMedia = { uri ->
+                                chatViewModel.sendImage(conversationId, uri)
                             },
                             onEmojiReact = { messageId, emoji ->
                                 chatViewModel.addEmojiReaction(conversationId, messageId, emoji)

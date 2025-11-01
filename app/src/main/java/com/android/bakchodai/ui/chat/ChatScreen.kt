@@ -1,8 +1,13 @@
 package com.android.bakchodai.ui.chat
 
+import android.net.Uri
 import android.util.Log
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -22,6 +27,7 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -59,8 +65,10 @@ import kotlinx.coroutines.delay
 fun ChatScreen(
     conversation: Conversation,
     users: List<User>,
-    isAiTyping: Boolean, // MODIFIED: This is now passed from the new ViewModel flow
+    isUploading: Boolean,
+    isAiTyping: Boolean,
     onSendMessage: (String) -> Unit,
+    onSendMedia: (Uri) -> Unit,
     onEmojiReact: (String, String) -> Unit,
     onEditMessage: (String, String) -> Unit,
     onNavigateToEditGroup: () -> Unit,
@@ -80,7 +88,15 @@ fun ChatScreen(
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showDeleteGroupDialog by remember { mutableStateOf(false) }
 
-    // --- REMOVED old group typing simulation ---
+    val photoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia(),
+        onResult = { uri ->
+            if (uri != null) {
+                // Pass the selected URI up to the ViewModel
+                onSendMedia(uri)
+            }
+        }
+    )
 
     // --- Back Press Handler ---
     // If in selection mode, pressing back cancels selection mode.
@@ -111,40 +127,64 @@ fun ChatScreen(
         modifier = Modifier.fillMaxSize()
     ) { paddingValues ->
         val chatBgColor = MaterialTheme.colorScheme.tertiaryContainer
-
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
                 .background(chatBgColor)
         ) {
-            val messages = conversation.messages.values.sortedByDescending { it.timestamp }
-
-            LazyColumn(
-                state = listState,
-                modifier = Modifier.weight(1f),
-                reverseLayout = true,
-                contentPadding = PaddingValues(vertical = 8.dp)
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
             ) {
-                items(messages, key = { it.id }) { message -> // Use the messages list directly
-                    val sender = usersById[message.senderId] ?: User(uid = message.senderId, name = "Unknown") // Handle unknown sender
-                    if (message.id.isNotBlank()) { // Add a check for valid message ID
-                        MessageBubble(
-                            message = message,
-                            isFromMe = message.senderId == currentUserId,
-                            sender = sender,
-                            isGroup = conversation.group,
-                            isSelected = (selectedMessageId == message.id),
-                            onLongPress = { selectedMessageId = message.id },
-                            onEmojiReact = { emoji -> onEmojiReact(message.id, emoji) }
-                        )
-                    } else {
-                        // Log or handle messages without an ID if necessary
-                        Log.w("ChatScreen", "Message found without valid ID: ${message.content}")
+                val messages = conversation.messages.values.sortedByDescending { it.timestamp }
+
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier.weight(1f),
+                    reverseLayout = true,
+                    contentPadding = PaddingValues(vertical = 8.dp)
+                ) {
+                    items(messages, key = { it.id }) { message -> // Use the messages list directly
+                        val sender = usersById[message.senderId] ?: User(
+                            uid = message.senderId,
+                            name = "Unknown"
+                        ) // Handle unknown sender
+                        if (message.id.isNotBlank()) { // Add a check for valid message ID
+                            MessageBubble(
+                                message = message,
+                                isFromMe = message.senderId == currentUserId,
+                                sender = sender,
+                                isGroup = conversation.group,
+                                isSelected = (selectedMessageId == message.id),
+                                onLongPress = { selectedMessageId = message.id },
+                                onEmojiReact = { emoji -> onEmojiReact(message.id, emoji) }
+                            )
+                        } else {
+                            // Log or handle messages without an ID if necessary
+                            Log.w(
+                                "ChatScreen",
+                                "Message found without valid ID: ${message.content}"
+                            )
+                        }
                     }
                 }
+                MessageInput(
+                    onSendMessage = onSendMessage,
+                    onSendMedia = {
+                        photoPickerLauncher.launch(
+                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                        )
+                    }
+                )
             }
-            MessageInput(onSendMessage = onSendMessage)
+            if (isUploading) {
+                CircularProgressIndicator(
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .padding(bottom = 80.dp)
+                )
+            }
         }
     }
 
@@ -210,16 +250,25 @@ private fun NormalTopBar(
         title = {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 val avatarUrl = if (!conversation.group) {
-                    val otherUserId = conversation.participants.keys.firstOrNull { it != currentUserId }
-                    usersById[otherUserId]?.resolveAvatarUrl() ?: "https://ui-avatars.com/api/?name=?"
+                    val otherUserId =
+                        conversation.participants.keys.firstOrNull { it != currentUserId }
+                    usersById[otherUserId]?.resolveAvatarUrl()
+                        ?: "https://ui-avatars.com/api/?name=?"
                 } else {
-                    "https://ui-avatars.com/api/?name=${conversation.name.replace(" ", "+")}&background=random"
+                    "https://ui-avatars.com/api/?name=${
+                        conversation.name.replace(
+                            " ",
+                            "+"
+                        )
+                    }&background=random"
                 }
 
                 AsyncImage(
                     model = avatarUrl,
                     contentDescription = "Profile Picture",
-                    modifier = Modifier.size(40.dp).clip(CircleShape)
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
                 )
 
                 Spacer(Modifier.width(12.dp))
