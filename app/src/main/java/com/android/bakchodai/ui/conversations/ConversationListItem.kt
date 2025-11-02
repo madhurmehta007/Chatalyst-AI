@@ -1,16 +1,10 @@
 package com.android.bakchodai.ui.conversations
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable // *** MODIFICATION: Use combinedClickable ***
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Audiotrack
@@ -27,6 +21,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color // Import
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
@@ -46,12 +41,13 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun ConversationListItem(
     conversation: Conversation,
     users: List<User>,
-    onConversationClick: (String) -> Unit,
+    isSelected: Boolean,
+    onConversationClick: () -> Unit,
     onLongPress: () -> Unit
 ) {
     val lastMessage = conversation.messages.values.maxByOrNull { it.timestamp }
@@ -65,15 +61,16 @@ fun ConversationListItem(
         }
     }
 
+    val backgroundColor = if (isSelected) {
+        MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
+    } else {
+        Color.Transparent
+    }
+
     val (avatarUrl, placeholderIcon) = if (conversation.group) {
         displayName = conversation.name
         Pair(
-            "https://ui-avatars.com/api/?name=${
-                conversation.name.replace(
-                    " ",
-                    "+"
-                )
-            }&background=random",
+            "https://ui-avatars.com/api/?name=${conversation.name.replace(" ", "+")}&background=random",
             Icons.Filled.Group
         )
     } else {
@@ -87,7 +84,6 @@ fun ConversationListItem(
         )
     }
 
-    // *** MODIFICATION: Media-aware preview text logic ***
     val lastMessagePreview: @Composable () -> Unit = @Composable {
         val previewColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
         if (lastMessage == null) {
@@ -102,7 +98,7 @@ fun ConversationListItem(
             val (icon, text) = when (lastMessage.type) {
                 MessageType.IMAGE -> Icons.Default.Photo to "Photo"
                 MessageType.AUDIO -> Icons.Default.Audiotrack to "Audio"
-                MessageType.VIDEO -> Icons.Default.Photo to "Video" // Assuming
+                MessageType.VIDEO -> Icons.Default.Photo to "Video"
                 MessageType.TEXT -> null to lastMessage.content
             }
 
@@ -130,15 +126,14 @@ fun ConversationListItem(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .pointerInput(Unit) {
-                detectTapGestures(
-                    onTap = { onConversationClick(conversation.id) },
-                    onLongPress = {
-                        hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                        onLongPress()
-                    }
-                )
-            }
+            .combinedClickable(
+                onClick = onConversationClick,
+                onLongClick = {
+                    hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                    onLongPress()
+                }
+            )
+            .background(backgroundColor)
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -185,8 +180,7 @@ fun ConversationListItem(
                 )
             }
 
-            val isMuted =
-                conversation.mutedUntil == -1L || conversation.mutedUntil > System.currentTimeMillis()
+            val isMuted = conversation.mutedUntil == -1L || conversation.mutedUntil > System.currentTimeMillis()
 
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (isMuted) {
