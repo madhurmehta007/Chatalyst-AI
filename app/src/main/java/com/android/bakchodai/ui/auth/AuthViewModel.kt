@@ -249,6 +249,17 @@ class AuthViewModel @Inject constructor(private val repository: ConversationRepo
         }
     }
 
+    fun upgradeToPremium() {
+        viewModelScope.launch {
+            val firebaseUser = auth.currentUser ?: return@launch
+            try {
+                repository.updateUserPremiumStatus(firebaseUser.uid, true)
+            } catch (e: Exception) {
+                _errorEvent.emit("Upgrade failed. Please try again.")
+            }
+        }
+    }
+
     /**
      * Updates the display name of the current authenticated user.
      *

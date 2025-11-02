@@ -18,7 +18,8 @@ data class UserEntity(
     val isOnline: Boolean,
     val lastSeen: Long,
     val fcmToken: String = "",
-    val bio: String = ""
+    val bio: String = "",
+    val isPremium: Boolean = false
 )
 
 @Entity(tableName = "conversations")

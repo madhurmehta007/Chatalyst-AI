@@ -390,17 +390,26 @@ class OfflineFirstConversationRepository @Inject constructor(
         }
     }
 
+    override suspend fun updateUserPremiumStatus(uid: String, isPremium: Boolean) {
+        try {
+            database.child("users").child(uid).child("isPremium").setValue(isPremium).await()
+            Log.d("Repo", "User premium status updated in Firebase for: $uid")
+        } catch (e: Exception) {
+            Log.e("Repo", "Failed to update user premium status in Firebase", e)
+        }
+    }
+
     private fun User.toEntity() = UserEntity(
         uid, name, avatarUrl, personality,
         backgroundStory, interests, speakingStyle,
         isOnline, lastSeen,fcmToken,
-        bio
+        bio,isPremium
     )
     private fun UserEntity.toModel() = User(
         uid, name, avatarUrl, personality,
         backgroundStory, interests, speakingStyle,
         isOnline, lastSeen,fcmToken,
-        bio
+        bio,isPremium
     )
     private fun Conversation.toEntity() = ConversationEntity(id, name, participants, messages, group, topic, typing)
     private fun ConversationEntity.toModel() = Conversation(id, name, participants, messages, isGroup, topic, typing)

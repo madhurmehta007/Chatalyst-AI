@@ -98,6 +98,7 @@ fun AppNavigation() {
                             onSaveClick = { newName -> authViewModel.updateUserName(newName) },
                             onSaveBio = { newBio -> authViewModel.updateUserBio(newBio) },
                             onLogoutClick = { authViewModel.logout() },
+                            onUpgradeClick = { authViewModel.upgradeToPremium() },
                             modifier = Modifier.padding(paddingValues)
                         )
                     }

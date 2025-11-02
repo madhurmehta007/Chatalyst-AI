@@ -375,6 +375,15 @@ class FirebaseConversationRepository : ConversationRepository {
         }
     }
 
+    override suspend fun updateUserPremiumStatus(uid: String, isPremium: Boolean) {
+        try {
+            database.child("users").child(uid).child("isPremium").setValue(isPremium).await()
+            Log.d("Repo", "User premium status updated in Firebase for: $uid")
+        } catch (e: Exception) {
+            Log.e("Repo", "Failed to update user premium status in Firebase", e)
+        }
+    }
+
     override suspend fun clearAllLocalData() {
     }
 }

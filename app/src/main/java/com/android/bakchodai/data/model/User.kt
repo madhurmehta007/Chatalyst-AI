@@ -15,7 +15,8 @@ data class User(
     val isOnline: Boolean = false,
     val lastSeen: Long = 0L,
     val fcmToken: String = "",
-    val bio: String = ""
+    val bio: String = "",
+    val isPremium: Boolean = false
 ){
     fun resolveAvatarUrl(): String {
         return if (!avatarUrl.isNullOrBlank()) {

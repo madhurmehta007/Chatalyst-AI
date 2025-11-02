@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Divider
@@ -60,6 +61,7 @@ fun ProfileScreen(
     onLogoutClick: () -> Unit,
     modifier: Modifier = Modifier,
     onSaveBio: (String) -> Unit,
+    onUpgradeClick: () -> Unit
 ) {
     var name by remember(user) { mutableStateOf(user?.name ?: "") }
     var bio by remember(user) { mutableStateOf(user?.bio ?: "") }
@@ -95,6 +97,7 @@ fun ProfileScreen(
             placeholder = rememberVectorPainter(Icons.Filled.Person),
             error = rememberVectorPainter(Icons.Filled.Person)
         )
+
         Spacer(modifier = Modifier.height(32.dp))
 
         ProfileListItem(
@@ -149,6 +152,17 @@ fun ProfileScreen(
                 )
             }
         )
+
+        if (user?.isPremium == false) {
+            Spacer(modifier = Modifier.padding(horizontal = 16.dp))
+            ProfileListItem(
+                icon = Icons.Default.WorkspacePremium,
+                title = "Upgrade to Premium",
+                subtitle = "Create unlimited custom AI characters!",
+                onClick = onUpgradeClick,
+                titleColor = MaterialTheme.colorScheme.secondary
+            )
+        }
 
         Spacer(modifier = Modifier.weight(1f))
 

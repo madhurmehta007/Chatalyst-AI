@@ -37,4 +37,6 @@ interface ConversationRepository {
     suspend fun markMessagesAsRead(conversationId: String, messageIds: List<String>, userId: String)
 
     suspend fun updateUserFcmToken(uid: String, token: String)
+
+    suspend fun updateUserPremiumStatus(uid: String, isPremium: Boolean)
 }
