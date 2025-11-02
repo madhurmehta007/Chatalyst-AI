@@ -136,7 +136,7 @@ fun ChatScreen(
     }
 
     LaunchedEffect(filteredMessages.lastOrNull()?.id) {
-        if (filteredMessages.isNotEmpty() && !isInSelectionMode) { // Don't autoscroll in selection mode
+        if (filteredMessages.isNotEmpty() && !isInSelectionMode) {
             listState.animateScrollToItem(filteredMessages.size - 1)
         }
     }
@@ -236,32 +236,38 @@ fun ChatScreen(
                                 0f
                             }
 
-                            // *** THIS IS THE FIXED CALL ***
                             MessageBubble(
                                 message = message,
                                 isFromMe = message.senderId == currentUserId,
                                 sender = sender,
                                 isGroup = conversation.group,
                                 isSelected = (message.id in selectedMessageIds),
-                                isInSelectionMode = isInSelectionMode, // *** MODIFICATION: Added missing param ***
+                                isInSelectionMode = isInSelectionMode,
                                 conversation = conversation,
                                 currentUserId = currentUserId!!,
+
+                                // *** MODIFICATION: Added check for current user ***
                                 onLongPress = {
-                                    if (!isInSelectionMode) {
+                                    if (!isInSelectionMode && message.senderId == currentUserId) {
                                         selectedMessageIds.add(message.id)
                                     }
                                 },
+                                // *** MODIFICATION: Added check for current user ***
                                 onTap = {
                                     if (isInSelectionMode) {
-                                        if (message.id in selectedMessageIds) {
-                                            selectedMessageIds.remove(message.id)
-                                        } else {
-                                            selectedMessageIds.add(message.id)
+                                        // Only allow toggling selection for your own messages
+                                        if (message.senderId == currentUserId) {
+                                            if (message.id in selectedMessageIds) {
+                                                selectedMessageIds.remove(message.id)
+                                            } else {
+                                                selectedMessageIds.add(message.id)
+                                            }
                                         }
                                     }
                                     // If not in selection mode, the bubble's internal
                                     // logic will handle showing the emoji picker.
                                 },
+
                                 onEmojiReact = { emoji -> onEmojiReact(message.id, emoji) },
                                 onSwipeToReply = { onSetReplyToMessage(message) },
                                 isPlaying = isThisMessagePlaying && playbackState.isPlaying,
@@ -303,7 +309,7 @@ fun ChatScreen(
         }
     }
 
-    // ... (All dialogs remain unchanged) ...
+
     if (showDeleteDialog) {
         val count = selectedMessageIds.size
         AlertDialog(
@@ -400,7 +406,7 @@ private fun NormalTopBar(
 
                     displayName = otherUser?.name ?: "Unknown"
                     avatarUrl =
-                        otherUser?.resolveAvatarUrl() ?: "https://ui-avatars.com/api/?name=?"
+                        otherUser?.resolveAvatarUrl() ?: "https.api.dicebear.com/7.x/avataaars/avif?seed=?"
                 }
 
                 AsyncImage(
