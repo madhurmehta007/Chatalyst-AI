@@ -19,20 +19,23 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Divider
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -48,9 +51,12 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -84,7 +90,8 @@ fun ChatScreen(
     onEmojiReact: (String, String) -> Unit,
     onEditMessage: (String, String) -> Unit,
     onNavigateToEditGroup: () -> Unit,
-    onDeleteMessage: (String) -> Unit,
+    onDeleteMessages: (List<String>) -> Unit,
+    onClearChat: () -> Unit,
     onDeleteGroup: () -> Unit,
     onBack: () -> Unit,
     typingUsers: List<User>,
@@ -93,6 +100,7 @@ fun ChatScreen(
     filteredMessages: List<Message>,
     searchQuery: String,
     onSearchQueryChanged: (String) -> Unit,
+    firstUnreadMessageId: String?,
     isRecording: Boolean,
     nowPlayingMessageId: String?,
     playbackState: PlaybackState,
@@ -106,10 +114,14 @@ fun ChatScreen(
     val currentUserId = Firebase.auth.currentUser?.uid
     val listState = rememberLazyListState()
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
 
-    var selectedMessageId by remember { mutableStateOf<String?>(null) }
+    val selectedMessageIds = remember { mutableStateListOf<String>() }
+    val isInSelectionMode = selectedMessageIds.isNotEmpty()
+
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showDeleteGroupDialog by remember { mutableStateOf(false) }
+    var showClearChatDialog by remember { mutableStateOf(false) }
     var isSearchActive by remember { mutableStateOf(false) }
     val lifecycleOwner = LocalLifecycleOwner.current
 
@@ -120,6 +132,12 @@ fun ChatScreen(
             onStartRecording()
         } else {
             Toast.makeText(context, "Mic permission denied", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    LaunchedEffect(filteredMessages.lastOrNull()?.id) {
+        if (filteredMessages.isNotEmpty() && !isInSelectionMode) { // Don't autoscroll in selection mode
+            listState.animateScrollToItem(filteredMessages.size - 1)
         }
     }
 
@@ -145,40 +163,41 @@ fun ChatScreen(
         }
     )
 
-    BackHandler(enabled = (selectedMessageId != null)) {
-        selectedMessageId = null
+    BackHandler(enabled = isInSelectionMode) {
+        selectedMessageIds.clear()
     }
 
     Scaffold(
         topBar = {
-            // *** Conditionally show the correct TopAppBar ***
-            if (selectedMessageId == null) {
+            if (isInSelectionMode) {
+                ContextualTopBar(
+                    selectedCount = selectedMessageIds.size,
+                    onClose = { selectedMessageIds.clear() },
+                    onDelete = { showDeleteDialog = true }
+                )
+            } else {
                 if (isSearchActive) {
                     SearchTopBar(
                         query = searchQuery,
                         onQueryChange = onSearchQueryChanged,
                         onClose = {
                             isSearchActive = false
-                            onSearchQueryChanged("") // Clear search
+                            onSearchQueryChanged("")
                         }
                     )
                 } else {
-                NormalTopBar(
-                    conversation = conversation,
-                    usersById = usersById,
-                    currentUserId = currentUserId,
-                    typingUsers = typingUsers, // MODIFIED: Pass new list
-                    onBack = onBack,
-                    onNavigateToEditGroup = onNavigateToEditGroup,
-                    onShowDeleteGroupDialog = { showDeleteGroupDialog = true },
-                    onSearchClick = { isSearchActive = true }
-                )
+                    NormalTopBar(
+                        conversation = conversation,
+                        usersById = usersById,
+                        currentUserId = currentUserId,
+                        typingUsers = typingUsers,
+                        onBack = onBack,
+                        onNavigateToEditGroup = onNavigateToEditGroup,
+                        onShowDeleteGroupDialog = { showDeleteGroupDialog = true },
+                        onShowClearChatDialog = { showClearChatDialog = true },
+                        onSearchClick = { isSearchActive = true }
+                    )
                 }
-            } else {
-                ContextualTopBar(
-                    onClose = { selectedMessageId = null },
-                    onDelete = { showDeleteDialog = true }
-                )
             }
         },
         modifier = Modifier.fillMaxSize()
@@ -194,15 +213,17 @@ fun ChatScreen(
                 modifier = Modifier
                     .fillMaxSize()
             ) {
-                val messages = conversation.messages.values.sortedByDescending { it.timestamp }
-
                 LazyColumn(
                     state = listState,
                     modifier = Modifier.weight(1f),
-                    reverseLayout = true,
+                    reverseLayout = false,
                     contentPadding = PaddingValues(vertical = 8.dp)
                 ) {
-                    items(filteredMessages, key = { it.id }) { message ->
+                    itemsIndexed(filteredMessages, key = { _, msg -> msg.id }) { index, message ->
+                        if (message.id == firstUnreadMessageId) {
+                            NewMessagesDivider()
+                        }
+
                         val sender = usersById[message.senderId] ?: User(
                             uid = message.senderId,
                             name = "Unknown"
@@ -214,15 +235,33 @@ fun ChatScreen(
                             } else {
                                 0f
                             }
+
+                            // *** THIS IS THE FIXED CALL ***
                             MessageBubble(
                                 message = message,
                                 isFromMe = message.senderId == currentUserId,
                                 sender = sender,
                                 isGroup = conversation.group,
-                                isSelected = (selectedMessageId == message.id),
+                                isSelected = (message.id in selectedMessageIds),
+                                isInSelectionMode = isInSelectionMode, // *** MODIFICATION: Added missing param ***
                                 conversation = conversation,
                                 currentUserId = currentUserId!!,
-                                onLongPress = { selectedMessageId = message.id },
+                                onLongPress = {
+                                    if (!isInSelectionMode) {
+                                        selectedMessageIds.add(message.id)
+                                    }
+                                },
+                                onTap = {
+                                    if (isInSelectionMode) {
+                                        if (message.id in selectedMessageIds) {
+                                            selectedMessageIds.remove(message.id)
+                                        } else {
+                                            selectedMessageIds.add(message.id)
+                                        }
+                                    }
+                                    // If not in selection mode, the bubble's internal
+                                    // logic will handle showing the emoji picker.
+                                },
                                 onEmojiReact = { emoji -> onEmojiReact(message.id, emoji) },
                                 onSwipeToReply = { onSetReplyToMessage(message) },
                                 isPlaying = isThisMessagePlaying && playbackState.isPlaying,
@@ -264,17 +303,18 @@ fun ChatScreen(
         }
     }
 
-
+    // ... (All dialogs remain unchanged) ...
     if (showDeleteDialog) {
+        val count = selectedMessageIds.size
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
-            title = { Text("Delete Message") },
-            text = { Text("Are you sure you want to delete this message?") },
+            title = { Text("Delete Message${if (count > 1) "s" else ""}") },
+            text = { Text("Are you sure you want to delete $count message${if (count > 1) "s" else ""}? This action cannot be undone.") },
             confirmButton = {
                 Button(
                     onClick = {
-                        selectedMessageId?.let { onDeleteMessage(it) }
-                        selectedMessageId = null
+                        onDeleteMessages(selectedMessageIds.toList())
+                        selectedMessageIds.clear()
                         showDeleteDialog = false
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
@@ -282,6 +322,26 @@ fun ChatScreen(
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteDialog = false }) { Text("Cancel") }
+            }
+        )
+    }
+
+    if (showClearChatDialog) {
+        AlertDialog(
+            onDismissRequest = { showClearChatDialog = false },
+            title = { Text("Clear Chat") },
+            text = { Text("Are you sure you want to clear this entire chat history? This action cannot be undone.") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        onClearChat()
+                        showClearChatDialog = false
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) { Text("Clear Chat") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showClearChatDialog = false }) { Text("Cancel") }
             }
         )
     }
@@ -296,6 +356,7 @@ fun ChatScreen(
                     onClick = {
                         onDeleteGroup()
                         showDeleteGroupDialog = false
+                        onBack()
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                 ) { Text("Delete") }
@@ -318,6 +379,7 @@ private fun NormalTopBar(
     onNavigateToEditGroup: () -> Unit,
     onBack: () -> Unit,
     onShowDeleteGroupDialog: () -> Unit,
+    onShowClearChatDialog: () -> Unit,
     onSearchClick: () -> Unit
 ) {
     val context = LocalContext.current
@@ -395,61 +457,76 @@ private fun NormalTopBar(
             val otherUserId =
                 if (conversation.group) null else conversation.participants.keys.firstOrNull { it != currentUserId }
             val otherUser = otherUserId?.let { usersById[it] }
+
+            var isMenuExpanded by remember { mutableStateOf(false) }
+            IconButton(onClick = { isMenuExpanded = true }) {
+                Icon(Icons.Default.MoreVert, contentDescription = "More Options")
+            }
+
             if (conversation.group) {
-                var isGroupMenuExpanded by remember { mutableStateOf(false) }
-                IconButton(onClick = { isGroupMenuExpanded = true }) {
-                    Icon(Icons.Default.MoreVert, contentDescription = "Group Options")
-                }
                 DropdownMenu(
-                    expanded = isGroupMenuExpanded,
-                    onDismissRequest = { isGroupMenuExpanded = false }
+                    expanded = isMenuExpanded,
+                    onDismissRequest = { isMenuExpanded = false }
                 ) {
                     DropdownMenuItem(
                         text = { Text("Edit Group") },
                         onClick = {
                             onNavigateToEditGroup()
-                            isGroupMenuExpanded = false
+                            isMenuExpanded = false
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Clear Chat", color = MaterialTheme.colorScheme.error) },
+                        onClick = {
+                            onShowClearChatDialog()
+                            isMenuExpanded = false
                         }
                     )
                     DropdownMenuItem(
                         text = { Text("Delete Group", color = MaterialTheme.colorScheme.error) },
                         onClick = {
                             onShowDeleteGroupDialog()
-                            isGroupMenuExpanded = false
+                            isMenuExpanded = false
                         }
                     )
                 }
             } else if (otherUser != null && !otherUser.uid.startsWith("ai_")) {
-                var isUserMenuExpanded by remember { mutableStateOf(false) }
-                IconButton(onClick = { isUserMenuExpanded = true }) {
-                    Icon(Icons.Default.MoreVert, contentDescription = "Chat Options")
-                }
                 DropdownMenu(
-                    expanded = isUserMenuExpanded,
-                    onDismissRequest = { isUserMenuExpanded = false }
+                    expanded = isMenuExpanded,
+                    onDismissRequest = { isMenuExpanded = false }
                 ) {
+                    DropdownMenuItem(
+                        text = { Text("Clear Chat", color = MaterialTheme.colorScheme.error) },
+                        onClick = {
+                            onShowClearChatDialog()
+                            isMenuExpanded = false
+                        }
+                    )
                     DropdownMenuItem(
                         text = { Text("Block User", color = MaterialTheme.colorScheme.error) },
                         onClick = {
-                            // TODO: Implement blocking logic
-                            Toast.makeText(
-                                context,
-                                "User blocked (Not Implemented)",
-                                Toast.LENGTH_SHORT
-                            ).show()
-                            isUserMenuExpanded = false
+                            Toast.makeText(context, "User blocked (Not Implemented)", Toast.LENGTH_SHORT).show()
+                            isMenuExpanded = false
                         }
                     )
                     DropdownMenuItem(
                         text = { Text("Report User", color = MaterialTheme.colorScheme.error) },
                         onClick = {
-                            // TODO: Implement reporting logic
-                            Toast.makeText(
-                                context,
-                                "User reported (Not Implemented)",
-                                Toast.LENGTH_SHORT
-                            ).show()
-                            isUserMenuExpanded = false
+                            Toast.makeText(context, "User reported (Not Implemented)", Toast.LENGTH_SHORT).show()
+                            isMenuExpanded = false
+                        }
+                    )
+                }
+            } else { // 1-on-1 AI Chat
+                DropdownMenu(
+                    expanded = isMenuExpanded,
+                    onDismissRequest = { isMenuExpanded = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("Clear Chat", color = MaterialTheme.colorScheme.error) },
+                        onClick = {
+                            onShowClearChatDialog()
+                            isMenuExpanded = false
                         }
                     )
                 }
@@ -461,32 +538,20 @@ private fun NormalTopBar(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ContextualTopBar(
+    selectedCount: Int,
     onClose: () -> Unit,
     onDelete: () -> Unit
 ) {
     TopAppBar(
-        title = { Text("1 selected") },
+        title = { Text("$selectedCount selected") },
         navigationIcon = {
             IconButton(onClick = onClose) {
                 Icon(Icons.Default.Close, contentDescription = "Close Selection")
             }
         },
         actions = {
-            var menuExpanded by remember { mutableStateOf(false) }
-            IconButton(onClick = { menuExpanded = true }) {
-                Icon(Icons.Default.MoreVert, contentDescription = "More options")
-            }
-            DropdownMenu(
-                expanded = menuExpanded,
-                onDismissRequest = { menuExpanded = false }
-            ) {
-                DropdownMenuItem(
-                    text = { Text("Delete", color = MaterialTheme.colorScheme.error) },
-                    onClick = {
-                        onDelete()
-                        menuExpanded = false
-                    }
-                )
+            IconButton(onClick = onDelete) {
+                Icon(Icons.Default.Delete, contentDescription = "Delete")
             }
         },
         colors = TopAppBarDefaults.topAppBarColors(
@@ -533,4 +598,29 @@ private fun SearchTopBar(
             containerColor = MaterialTheme.colorScheme.surface
         )
     )
+}
+
+@Composable
+private fun NewMessagesDivider() {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 32.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Spacer(modifier = Modifier.weight(1f))
+        Text(
+            text = "NEW MESSAGES",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier
+                .padding(horizontal = 8.dp)
+                .background(
+                    MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.8f),
+                    RoundedCornerShape(8.dp)
+                )
+                .padding(horizontal = 6.dp, vertical = 2.dp)
+        )
+        Divider(modifier = Modifier.weight(1f))
+    }
 }

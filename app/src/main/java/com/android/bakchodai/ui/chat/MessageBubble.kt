@@ -1,13 +1,16 @@
 package com.android.bakchodai.ui.chat
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.awaitHorizontalDragOrCancellation
-import androidx.compose.foundation.gestures.drag
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.drag
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,12 +25,14 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Audiotrack
 import androidx.compose.material.icons.filled.BrokenImage
 import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.filled.DoneAll
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Photo
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -60,6 +65,7 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.android.bakchodai.data.model.Conversation
 import com.android.bakchodai.data.model.Message
@@ -69,7 +75,6 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.concurrent.TimeUnit
-import kotlin.math.abs
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -79,9 +84,11 @@ fun MessageBubble(
     sender: User,
     isGroup: Boolean,
     isSelected: Boolean,
+    isInSelectionMode: Boolean,
     conversation: Conversation,
     currentUserId: String,
     onLongPress: () -> Unit,
+    onTap: () -> Unit,
     onEmojiReact: (String) -> Unit,
     onSwipeToReply: () -> Unit,
     isPlaying: Boolean,
@@ -129,18 +136,14 @@ fun MessageBubble(
         .pointerInput(Unit) {
             awaitEachGesture {
                 val down = awaitFirstDown(requireUnconsumed = false)
-
                 val dragStart = awaitHorizontalDragOrCancellation(down.id)
 
                 if (dragStart != null) {
                     if (dragStart.positionChange().x > 0) {
                         dragStart.consume()
-
                         var totalDrag = 0f
-
                         val dragSuccessful = drag(dragStart.id) { change ->
                             val horizontalChange = change.positionChange().x
-
                             if (horizontalChange > 0) {
                                 change.consume()
                                 totalDrag += horizontalChange
@@ -149,7 +152,6 @@ fun MessageBubble(
                                 change.consume()
                             }
                         }
-
                         if (dragSuccessful && swipeOffset > swipeThreshold) {
                             hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
                             onSwipeToReply()
@@ -159,9 +161,27 @@ fun MessageBubble(
                 swipeOffset = 0f
             }
         }
+        .pointerInput(Unit) {
+            // This is the tap/long-press gesture
+            detectTapGestures(
+                onLongPress = {
+                    onLongPress() // This starts multi-select
+                    hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                },
+                onTap = {
+                    // *** MODIFICATION: Handle tap based on selection mode ***
+                    if (isInSelectionMode) {
+                        onTap() // This toggles selection
+                    } else {
+                        // This is a simple tap, toggle the emoji picker
+                        showEmojiPicker = !showEmojiPicker
+                    }
+                }
+            )
+        }
 
     Row(
-        modifier = rowModifier, // Apply the new modifier here
+        modifier = rowModifier,
         verticalAlignment = Alignment.Bottom,
         horizontalArrangement = if (isFromMe) Arrangement.End else Arrangement.Start
     ) {
@@ -183,6 +203,21 @@ fun MessageBubble(
 
         Column(horizontalAlignment = if (isFromMe) Alignment.End else Alignment.Start) {
 
+            // *** MODIFICATION: Added Emoji Picker ***
+            AnimatedVisibility(
+                visible = showEmojiPicker,
+                enter = scaleIn(),
+                exit = scaleOut()
+            ) {
+                EmojiPicker(
+                    onEmojiSelected = { emoji ->
+                        onEmojiReact(emoji)
+                        showEmojiPicker = false
+                    },
+                    modifier = Modifier.padding(bottom = 4.dp)
+                )
+            }
+
             var isDropdownExpanded by remember { mutableStateOf(false) }
 
             Box {
@@ -192,13 +227,6 @@ fun MessageBubble(
                         .shadow(1.dp, bubbleShape)
                         .clip(bubbleShape)
                         .background(bubbleColor)
-                        // Only tap gestures remain on the bubble itself
-                        .pointerInput(Unit) {
-                            detectTapGestures(
-                                onLongPress = { onLongPress() },
-                                onTap = { showEmojiPicker = !showEmojiPicker }
-                            )
-                        }
                         .padding(horizontal = 12.dp, vertical = 8.dp)
                 ) {
                     Column {
@@ -228,13 +256,31 @@ fun MessageBubble(
                                         color = MaterialTheme.colorScheme.primary,
                                         style = MaterialTheme.typography.labelSmall
                                     )
-                                    Text(
-                                        text = message.replyPreview ?: "",
-                                        color = textColor.copy(alpha = 0.8f),
-                                        style = MaterialTheme.typography.bodySmall,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
+                                    val previewText = message.replyPreview ?: ""
+                                    val (icon, text) = when {
+                                        previewText.startsWith("📷") -> Icons.Default.Photo to previewText
+                                        previewText.startsWith("🎤") -> Icons.Default.Audiotrack to previewText
+                                        else -> null to previewText
+                                    }
+
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        if (icon != null) {
+                                            Icon(
+                                                imageVector = icon,
+                                                contentDescription = "Media",
+                                                modifier = Modifier.size(16.dp),
+                                                tint = textColor.copy(alpha = 0.8f)
+                                            )
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                        }
+                                        Text(
+                                            text = text,
+                                            color = textColor.copy(alpha = 0.8f),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -347,25 +393,41 @@ fun MessageBubble(
                     }
                 }
             }
+        }
+    }
+}
 
-            if (showEmojiPicker) {
-                Row {
-                    listOf("😄", "😂", "👍", "🔥").forEach { emoji ->
-                        Text(
-                            text = emoji,
-                            modifier = Modifier
-                                .padding(4.dp)
-                                .clickable {
-                                    onEmojiReact(emoji)
-                                    showEmojiPicker = false
-                                }
-                        )
-                    }
-                }
+// *** MODIFICATION: Added EmojiPicker composable ***
+@Composable
+private fun EmojiPicker(
+    onEmojiSelected: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val emojis = listOf("👍", "❤️", "😂", "😮", "😢", "🙏")
+
+    Surface(
+        shape = RoundedCornerShape(24.dp),
+        tonalElevation = 4.dp,
+        shadowElevation = 4.dp,
+        modifier = modifier
+    ) {
+        Row(
+            modifier = Modifier
+                .padding(horizontal = 8.dp, vertical = 4.dp)
+        ) {
+            emojis.forEach { emoji ->
+                Text(
+                    text = emoji,
+                    fontSize = 24.sp,
+                    modifier = Modifier
+                        .clickable { onEmojiSelected(emoji) }
+                        .padding(horizontal = 6.dp, vertical = 4.dp)
+                )
             }
         }
     }
 }
+
 
 @Composable
 private fun AudioMessagePlayer(
@@ -376,9 +438,7 @@ private fun AudioMessagePlayer(
     onSeek: (Float) -> Unit
 ) {
     var localSliderPosition by remember { mutableStateOf(0f) }
-
     var isDragging by remember { mutableStateOf(false) }
-
     val onSeekState = rememberUpdatedState(onSeek)
 
     LaunchedEffect(progress, isDragging) {

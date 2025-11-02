@@ -16,9 +16,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf // Import
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue // Import
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -40,10 +40,10 @@ import com.android.bakchodai.ui.main.MainScreen
 import com.android.bakchodai.ui.main.MainViewModel
 import com.android.bakchodai.ui.newchat.NewChatScreen
 import com.android.bakchodai.ui.newchat.NewChatViewModel
-import com.android.bakchodai.ui.premium.PremiumScreen // Import PremiumScreen
+import com.android.bakchodai.ui.premium.PremiumScreen
 import com.android.bakchodai.ui.profile.ProfileScreen
-import com.android.bakchodai.ui.splash.SplashScreen // Import SplashScreen
-import kotlinx.coroutines.delay // Import
+import com.android.bakchodai.ui.splash.SplashScreen
+import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -53,7 +53,6 @@ fun AppNavigation() {
     val authState by authViewModel.authState.collectAsState()
     val authIsLoading by authViewModel.isLoading.collectAsState()
 
-    // *** MODIFICATION: Add splash screen state ***
     var isSplashing by remember { mutableStateOf(true) }
 
     LaunchedEffect(Unit) {
@@ -113,7 +112,6 @@ fun AppNavigation() {
                                 onSaveClick = { newName -> authViewModel.updateUserName(newName) },
                                 onSaveBio = { newBio -> authViewModel.updateUserBio(newBio) },
                                 onLogoutClick = { authViewModel.logout() },
-                                // *** MODIFICATION: Navigate to premium screen ***
                                 onUpgradeClick = { navController.navigate("premium") },
                                 modifier = Modifier.padding(paddingValues)
                             )
@@ -125,20 +123,18 @@ fun AppNavigation() {
                         val users by newChatViewModel.users.collectAsState()
                         val isLoading by newChatViewModel.isLoading.collectAsState()
                         val conversationId by newChatViewModel.navigateToConversation.collectAsState()
-                        // *** MODIFICATION: Get premium status ***
                         val isUserPremium by newChatViewModel.isUserPremium.collectAsState()
 
                         NewChatScreen(
                             users = users,
                             isLoading = isLoading,
-                            isUserPremium = isUserPremium, // Pass state
+                            isUserPremium = isUserPremium,
                             onUserClick = { user ->
                                 newChatViewModel.findOrCreateConversation(user)
                             },
                             onAddAiClick = {
                                 navController.navigate("add_ai_character")
                             },
-                            // *** MODIFICATION: Add navigation to premium ***
                             onNavigateToPremium = {
                                 navController.navigate("premium")
                             },
@@ -206,6 +202,9 @@ fun AppNavigation() {
                         val nowPlayingMessageId by chatViewModel.nowPlayingMessageId.collectAsState()
                         val playbackState by chatViewModel.playbackState.collectAsState()
 
+                        // *** MODIFICATION: Collect new state ***
+                        val firstUnreadMessageId by chatViewModel.firstUnreadMessageId.collectAsState()
+
                         if (isLoading) {
                             Box(
                                 modifier = Modifier.fillMaxSize(),
@@ -236,9 +235,15 @@ fun AppNavigation() {
                                 onEditMessage = { messageId, newText ->
                                     chatViewModel.editMessage(conversationId, messageId, newText)
                                 },
-                                onDeleteMessage = { messageId ->
-                                    chatViewModel.deleteMessage(conversationId, messageId)
+
+                                // *** MODIFICATION: Updated delete/clear functions ***
+                                onDeleteMessages = { messageIds ->
+                                    chatViewModel.deleteMessages(conversationId, messageIds)
                                 },
+                                onClearChat = {
+                                    chatViewModel.clearChat(conversationId)
+                                },
+
                                 onNavigateToEditGroup = {
                                     navController.navigate("edit_group/$conversationId")
                                 },
@@ -255,6 +260,10 @@ fun AppNavigation() {
                                 onSearchQueryChanged = { query ->
                                     chatViewModel.onSearchQueryChanged(query)
                                 },
+
+                                // *** MODIFICATION: Pass new state ***
+                                firstUnreadMessageId = firstUnreadMessageId,
+
                                 isRecording = isRecording,
                                 nowPlayingMessageId = nowPlayingMessageId,
                                 playbackState = playbackState,

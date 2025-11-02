@@ -26,6 +26,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
@@ -72,6 +73,10 @@ class ChatViewModel @Inject constructor(
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
 
+    // *** MODIFICATION: For "New Messages" divider ***
+    private val _firstUnreadMessageId = MutableStateFlow<String?>(null)
+    val firstUnreadMessageId: StateFlow<String?> = _firstUnreadMessageId.asStateFlow()
+
     private val currentUserId = Firebase.auth.currentUser?.uid
 
     init {
@@ -108,6 +113,12 @@ class ChatViewModel @Inject constructor(
 
     fun loadConversation(conversationId: String) {
         viewModelScope.launch {
+            // *** MODIFICATION: Set first unread ID *before* collecting ***
+            val initialConvo = repository.getConversationFlow(conversationId).first() // Get initial state
+            if (initialConvo != null) {
+                _firstUnreadMessageId.value = findFirstUnreadMessageId(initialConvo)
+            }
+
             repository.getConversationFlow(conversationId).collectLatest { conv ->
                 _conversation.value = conv
                 if (_isLoading.value) {
@@ -122,6 +133,16 @@ class ChatViewModel @Inject constructor(
         }
     }
 
+    // *** MODIFICATION: Helper to get message preview text ***
+    private fun getMessagePreview(message: Message): String {
+        return when (message.type) {
+            MessageType.TEXT -> message.content
+            MessageType.IMAGE -> "📷 Photo"
+            MessageType.AUDIO -> "🎤 Audio"
+            MessageType.VIDEO -> "▶️ Video"
+        }
+    }
+
     fun sendMessage(conversationId: String, text: String) {
         val currentUser = Firebase.auth.currentUser ?: return
         val replyingTo = _replyToMessage.value
@@ -131,7 +152,8 @@ class ChatViewModel @Inject constructor(
             content = text,
             timestamp = System.currentTimeMillis(),
             replyToMessageId = replyingTo?.id,
-            replyPreview = replyingTo?.content,
+            // *** MODIFICATION: Use preview helper ***
+            replyPreview = replyingTo?.let { getMessagePreview(it) },
             replySenderName = users.value.find { it.uid == replyingTo?.senderId }?.name
         )
 
@@ -152,22 +174,20 @@ class ChatViewModel @Inject constructor(
 
                 try {
                     val currentMessages = currentConvoState.messages.values.toList()
-                    val historyForAI = (currentMessages + userMessage).sortedBy { it.timestamp } // Add new message and sort
+                    val historyForAI = (currentMessages + userMessage).sortedBy { it.timestamp }
 
                     Log.d("ChatViewModel", "History size for AI: ${historyForAI.size}, Last User Msg: ${userMessage.content}")
 
-                    // 4. Generate AI response
-                    val aiResponseText = aiService.getResponse(historyForAI) // Pass the constructed history
+                    val aiResponseText = aiService.getResponse(historyForAI)
                     Log.d("ChatViewModel", "AI response received: $aiResponseText")
 
-                    // 5. Create and save the AI's message
                     if (aiResponseText.isNotBlank()) {
                         val aiMessage = Message(
                             senderId = aiParticipantId,
                             content = aiResponseText,
-                            timestamp = System.currentTimeMillis() + 1 // Ensure slightly later timestamp
+                            timestamp = System.currentTimeMillis() + 1
                         )
-                        repository.addMessage(conversationId, aiMessage) // Write AI message to Firebase
+                        repository.addMessage(conversationId, aiMessage)
                         Log.d("ChatViewModel", "AI message sent to repo: ${aiMessage.content}")
 
                     } else {
@@ -177,7 +197,6 @@ class ChatViewModel @Inject constructor(
                     Log.e("ChatViewModel", "Error generating/sending AI response", e)
                 }
                 finally {
-                    // MODIFIED: Ensure typing indicator stops
                     repository.setTypingIndicator(conversationId, aiParticipantId, false)
                     Log.d("ChatViewModel", "AI typing stopped")
                 }
@@ -214,7 +233,7 @@ class ChatViewModel @Inject constructor(
             if (conversation == null) {
                 emptyList()
             } else {
-                val allMessages = conversation.messages.values.sortedByDescending { it.timestamp }
+                val allMessages = conversation.messages.values.sortedBy { it.timestamp } // *** MODIFICATION: Sort by ascending for divider logic ***
                 if (query.isBlank()) {
                     allMessages
                 } else {
@@ -228,6 +247,15 @@ class ChatViewModel @Inject constructor(
 
     fun onSearchQueryChanged(query: String) {
         _searchQuery.value = query
+    }
+
+    // *** MODIFICATION: Helper to find first unread message ***
+    private fun findFirstUnreadMessageId(conversation: Conversation): String? {
+        val userId = currentUserId ?: return null
+        return conversation.messages.values
+            .sortedBy { it.timestamp }
+            .firstOrNull { it.senderId != userId && !it.readBy.containsKey(userId) }
+            ?.id
     }
 
     private fun markMessagesAsRead(conversation: Conversation) {
@@ -250,9 +278,17 @@ class ChatViewModel @Inject constructor(
         }
     }
 
-    fun deleteMessage(conversationId: String, messageId: String) {
+    // *** MODIFICATION: Renamed to deleteMessages for multi-delete ***
+    fun deleteMessages(conversationId: String, messageIds: List<String>) {
         viewModelScope.launch {
-            repository.deleteMessage(conversationId, messageId)
+            repository.deleteMessages(conversationId, messageIds)
+        }
+    }
+
+    // *** MODIFICATION: Added clearChat ***
+    fun clearChat(conversationId: String) {
+        viewModelScope.launch {
+            repository.clearChat(conversationId)
         }
     }
 
@@ -267,29 +303,23 @@ class ChatViewModel @Inject constructor(
         viewModelScope.launch {
             _isUploading.value = true
             try {
-                // Create a unique ID for the image
                 val imageId = UUID.randomUUID().toString()
                 val storageRef = storage.reference
                     .child("images/$conversationId/$imageId.jpg")
 
-                // 1. Upload the file to Firebase Storage
                 storageRef.putFile(imageUri).await()
-
-                // 2. Get the download URL
                 val downloadUrl = storageRef.downloadUrl.await().toString()
 
-                // 3. Create and send the message object
                 val imageMessage = Message(
                     senderId = currentUser.uid,
-                    content = downloadUrl, // The URL is the content
+                    content = downloadUrl,
                     timestamp = System.currentTimeMillis(),
-                    type = MessageType.IMAGE // *** Set the type ***
+                    type = MessageType.IMAGE
                 )
                 repository.addMessage(conversationId, imageMessage)
 
             } catch (e: Exception) {
                 Log.e("ChatViewModel", "Error uploading image", e)
-                // TODO: You could emit an error event here
             } finally {
                 _isUploading.value = false
             }

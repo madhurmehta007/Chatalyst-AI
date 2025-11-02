@@ -17,8 +17,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AttachFile
+import androidx.compose.material.icons.filled.Audiotrack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.Photo
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.Card
@@ -43,6 +45,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.android.bakchodai.data.model.Message
+import com.android.bakchodai.data.model.MessageType
 
 @Composable
 fun MessageInput(
@@ -83,13 +86,32 @@ fun MessageInput(
                         color = MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.Bold
                     )
-                    Text(
-                        text = replyToMessage?.content ?: "",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+
+                    // *** MODIFICATION: Show media-aware preview ***
+                    val (icon, previewText) = when (replyToMessage?.type) {
+                        MessageType.IMAGE -> Icons.Default.Photo to "Photo"
+                        MessageType.AUDIO -> Icons.Default.Audiotrack to "Audio"
+                        else -> null to (replyToMessage?.content ?: "")
+                    }
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (icon != null) {
+                            Icon(
+                                imageVector = icon,
+                                contentDescription = "Media",
+                                modifier = Modifier.size(16.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                        }
+                        Text(
+                            text = previewText,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                 }
 
                 IconButton(onClick = onCancelReply, modifier = Modifier.size(24.dp)) {
@@ -123,7 +145,8 @@ fun MessageInput(
                     Icon(Icons.Default.Stop, "Stop Recording")
                 }
             }
-        } else {
+        }
+        else {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically

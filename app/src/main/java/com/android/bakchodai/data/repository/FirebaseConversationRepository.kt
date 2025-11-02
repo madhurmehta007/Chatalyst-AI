@@ -269,10 +269,29 @@ class FirebaseConversationRepository : ConversationRepository {
             .await()
     }
 
-    override suspend fun deleteMessage(conversationId: String, messageId: String) {
-        database.child("conversations/$conversationId/messages/$messageId")
-            .removeValue()
-            .await()
+    override suspend fun deleteMessages(conversationId: String, messageIds: List<String>) {
+        if (messageIds.isEmpty()) return
+
+        val updates = mutableMapOf<String, Any?>()
+        messageIds.forEach { msgId ->
+            updates["/conversations/$conversationId/messages/$msgId"] = null
+        }
+
+        try {
+            database.updateChildren(updates).await()
+            Log.d("Repo", "Deleted ${messageIds.size} messages in Firebase")
+        } catch (e: Exception) {
+            Log.e("Repo", "Failed to delete messages in Firebase", e)
+        }
+    }
+
+    override suspend fun clearChat(conversationId: String) {
+        try {
+            database.child("conversations/$conversationId/messages").removeValue().await()
+            Log.d("Repo", "Chat history cleared in Firebase for: $conversationId")
+        } catch (e: Exception) {
+            Log.e("Repo", "Failed to clear chat in Firebase", e)
+        }
     }
 
     override suspend fun deleteGroup(conversationId: String) {

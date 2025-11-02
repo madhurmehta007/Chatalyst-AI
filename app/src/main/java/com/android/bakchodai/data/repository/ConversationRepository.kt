@@ -20,8 +20,10 @@ interface ConversationRepository {
     suspend fun updateUserName(uid: String, newName: String)
 
     suspend fun updateMessage(conversationId: String, messageId: String, newText: String)
-    suspend fun deleteMessage(conversationId: String, messageId: String)
+    suspend fun deleteMessages(conversationId: String, messageIds: List<String>) // *** MODIFIED ***
     suspend fun deleteGroup(conversationId: String)
+
+    suspend fun clearChat(conversationId: String) // *** ADDED ***
 
     suspend fun updateGroupDetails(conversationId: String, newName: String, newTopic: String)
 

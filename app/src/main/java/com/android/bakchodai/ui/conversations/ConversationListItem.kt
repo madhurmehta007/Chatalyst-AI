@@ -2,21 +2,30 @@ package com.android.bakchodai.ui.conversations
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Audiotrack
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material3.Badge // Import
-import androidx.compose.material3.BadgedBox // Import
-import androidx.compose.material3.ExperimentalMaterial3Api // Import
+import androidx.compose.material.icons.filled.Photo
+import androidx.compose.material3.Badge
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
@@ -25,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.android.bakchodai.data.model.Conversation
+import com.android.bakchodai.data.model.MessageType
 import com.android.bakchodai.data.model.User
 import com.google.firebase.Firebase
 import com.google.firebase.auth.auth
@@ -32,7 +42,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-@OptIn(ExperimentalMaterial3Api::class) // Add this annotation
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ConversationListItem(
     conversation: Conversation,
@@ -43,7 +53,6 @@ fun ConversationListItem(
     val currentUserId = Firebase.auth.currentUser?.uid
     val displayName: String
 
-    // *** MODIFICATION: Calculate unread count ***
     val unreadCount = if (currentUserId == null) 0 else {
         conversation.messages.values.count {
             it.senderId != currentUserId && !it.readBy.containsKey(currentUserId)
@@ -66,6 +75,47 @@ fun ConversationListItem(
             Icons.Filled.Person
         )
     }
+
+    // *** MODIFICATION: Media-aware preview text logic ***
+    val lastMessagePreview: @Composable () -> Unit = @Composable {
+        val previewColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+        if (lastMessage == null) {
+            Text(
+                text = "No messages yet.",
+                color = previewColor,
+                fontSize = 15.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        } else {
+            val (icon, text) = when (lastMessage.type) {
+                MessageType.IMAGE -> Icons.Default.Photo to "Photo"
+                MessageType.AUDIO -> Icons.Default.Audiotrack to "Audio"
+                MessageType.VIDEO -> Icons.Default.Photo to "Video" // Assuming
+                MessageType.TEXT -> null to lastMessage.content
+            }
+
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (icon != null) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = text,
+                        tint = previewColor,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                }
+                Text(
+                    text = text,
+                    color = previewColor,
+                    fontSize = 15.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+    }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -99,18 +149,12 @@ fun ConversationListItem(
                 overflow = TextOverflow.Ellipsis
             )
             Spacer(Modifier.height(4.dp))
-            Text(
-                text = lastMessage?.content ?: "No messages yet.",
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                fontSize = 15.sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
+            // *** MODIFICATION: Use the composable function ***
+            lastMessagePreview()
         }
 
         Spacer(Modifier.width(16.dp))
 
-        // *** MODIFICATION: Column for timestamp and unread badge ***
         Column(
             horizontalAlignment = Alignment.End,
             verticalArrangement = Arrangement.Center
