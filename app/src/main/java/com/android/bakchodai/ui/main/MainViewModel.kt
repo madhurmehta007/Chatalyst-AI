@@ -39,6 +39,7 @@ class MainViewModel @Inject constructor(private val repository: ConversationRepo
     private val auth: FirebaseAuth = Firebase.auth
 
     init {
+        // ... (init block is unchanged) ...
         val userIdFlow = callbackFlow<String?> {
             val listener = FirebaseAuth.AuthStateListener {
                 trySend(it.currentUser?.uid)
@@ -77,4 +78,20 @@ class MainViewModel @Inject constructor(private val repository: ConversationRepo
         }
     }
 
+    fun clearChat(conversationId: String) {
+        viewModelScope.launch {
+            repository.clearChat(conversationId)
+        }
+    }
+
+    fun muteConversation(conversationId: String, durationMillis: Long) {
+        viewModelScope.launch {
+            val mutedUntil = if (durationMillis == -1L) {
+                -1L // Flag for "Always"
+            } else {
+                System.currentTimeMillis() + durationMillis
+            }
+            repository.setConversationMuted(conversationId, mutedUntil)
+        }
+    }
 }

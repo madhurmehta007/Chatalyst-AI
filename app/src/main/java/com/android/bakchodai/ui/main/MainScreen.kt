@@ -130,13 +130,17 @@ fun MainScreen(
                         conversations = conversations.filter { !it.group },
                         users = users,
                         onConversationClick = onConversationClick,
-                        isLoading = isLoading
+                        isLoading = isLoading,
+                        onClearChat = mainViewModel::clearChat,
+                        onMuteConversation = mainViewModel::muteConversation
                     )
                     1 -> ConversationListScreen(
                         conversations = conversations.filter { it.group },
                         users = users,
                         onConversationClick = onConversationClick,
-                        isLoading = isLoading
+                        isLoading = isLoading,
+                        onClearChat = mainViewModel::clearChat,
+                        onMuteConversation = mainViewModel::muteConversation
                     )
                 }
             }

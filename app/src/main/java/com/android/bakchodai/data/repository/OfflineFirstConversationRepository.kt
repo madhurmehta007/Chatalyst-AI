@@ -496,6 +496,6 @@ class OfflineFirstConversationRepository @Inject constructor(
         runBlocking { conversationDao.getConversationByIdSuspend(id)?.mutedUntil ?: 0L }
     )
     private fun ConversationEntity.toModel() = Conversation(
-        id, name, participants, messages, isGroup, topic, typing
+        id, name, participants, messages, isGroup, topic, typing,mutedUntil
     )
 }

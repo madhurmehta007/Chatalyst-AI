@@ -1,7 +1,7 @@
 package com.android.bakchodai.ui.conversations
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -15,6 +15,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Audiotrack
 import androidx.compose.material.icons.filled.Group
+import androidx.compose.material.icons.filled.NotificationsOff
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Photo
 import androidx.compose.material3.Badge
@@ -27,7 +28,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -47,11 +51,13 @@ import java.util.Locale
 fun ConversationListItem(
     conversation: Conversation,
     users: List<User>,
-    onConversationClick: (String) -> Unit
+    onConversationClick: (String) -> Unit,
+    onLongPress: () -> Unit
 ) {
     val lastMessage = conversation.messages.values.maxByOrNull { it.timestamp }
     val currentUserId = Firebase.auth.currentUser?.uid
     val displayName: String
+    val hapticFeedback = LocalHapticFeedback.current
 
     val unreadCount = if (currentUserId == null) 0 else {
         conversation.messages.values.count {
@@ -62,7 +68,12 @@ fun ConversationListItem(
     val (avatarUrl, placeholderIcon) = if (conversation.group) {
         displayName = conversation.name
         Pair(
-            "https://ui-avatars.com/api/?name=${conversation.name.replace(" ", "+")}&background=random",
+            "https://ui-avatars.com/api/?name=${
+                conversation.name.replace(
+                    " ",
+                    "+"
+                )
+            }&background=random",
             Icons.Filled.Group
         )
     } else {
@@ -119,7 +130,15 @@ fun ConversationListItem(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onConversationClick(conversation.id) }
+            .pointerInput(Unit) {
+                detectTapGestures(
+                    onTap = { onConversationClick(conversation.id) },
+                    onLongPress = {
+                        hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onLongPress()
+                    }
+                )
+            }
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -149,7 +168,6 @@ fun ConversationListItem(
                 overflow = TextOverflow.Ellipsis
             )
             Spacer(Modifier.height(4.dp))
-            // *** MODIFICATION: Use the composable function ***
             lastMessagePreview()
         }
 
@@ -166,18 +184,33 @@ fun ConversationListItem(
                     fontSize = 12.sp
                 )
             }
-            if (unreadCount > 0) {
-                Spacer(Modifier.height(4.dp))
-                Badge(
-                    containerColor = MaterialTheme.colorScheme.secondary
-                ) {
-                    Text(
-                        text = "$unreadCount",
-                        color = MaterialTheme.colorScheme.onSecondary,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(horizontal = 4.dp)
+
+            val isMuted =
+                conversation.mutedUntil == -1L || conversation.mutedUntil > System.currentTimeMillis()
+
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (isMuted) {
+                    Icon(
+                        Icons.Default.NotificationsOff,
+                        contentDescription = "Muted",
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                     )
+                    Spacer(modifier = Modifier.width(4.dp))
+                }
+
+                if (unreadCount > 0) {
+                    Badge(
+                        containerColor = MaterialTheme.colorScheme.secondary
+                    ) {
+                        Text(
+                            text = "$unreadCount",
+                            color = MaterialTheme.colorScheme.onSecondary,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 4.dp)
+                        )
+                    }
                 }
             }
         }
