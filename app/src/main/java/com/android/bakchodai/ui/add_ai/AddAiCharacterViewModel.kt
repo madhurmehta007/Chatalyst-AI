@@ -30,12 +30,7 @@ class AddAiCharacterViewModel @Inject constructor(private val repository: Conver
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
 
-    private val currentUserId = Firebase.auth.currentUser?.uid
-    val isUserPremium: StateFlow<Boolean> = repository.getUsersFlow()
-        .map { users ->
-            users.find { it.uid == currentUserId }?.isPremium ?: false
-        }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+    // *** MODIFICATION: Removed isUserPremium flow ***
 
     fun addAiCharacter(
         name: String,
@@ -44,10 +39,7 @@ class AddAiCharacterViewModel @Inject constructor(private val repository: Conver
         interests: String,
         style: String
     ) {
-        if (!isUserPremium.value) {
-            _errorMessage.value = "Upgrade to Premium to create custom AI characters."
-            return
-        }
+        // *** MODIFICATION: Removed premium check ***
 
         if (name.isBlank() || personality.isBlank() || background.isBlank() || style.isBlank()) {
             _errorMessage.value = "All fields except Interests are required."
@@ -81,6 +73,7 @@ class AddAiCharacterViewModel @Inject constructor(private val repository: Conver
                 _addSuccess.value = true
 
             } catch (e: Exception) {
+                _errorMessage.value = "An error occurred: ${e.message}" // Generic error
             }
             finally { _isLoading.value = false }
 

@@ -7,6 +7,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material3.Badge // Import
+import androidx.compose.material3.BadgedBox // Import
+import androidx.compose.material3.ExperimentalMaterial3Api // Import
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -29,6 +32,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+@OptIn(ExperimentalMaterial3Api::class) // Add this annotation
 @Composable
 fun ConversationListItem(
     conversation: Conversation,
@@ -38,6 +42,14 @@ fun ConversationListItem(
     val lastMessage = conversation.messages.values.maxByOrNull { it.timestamp }
     val currentUserId = Firebase.auth.currentUser?.uid
     val displayName: String
+
+    // *** MODIFICATION: Calculate unread count ***
+    val unreadCount = if (currentUserId == null) 0 else {
+        conversation.messages.values.count {
+            it.senderId != currentUserId && !it.readBy.containsKey(currentUserId)
+        }
+    }
+
     val (avatarUrl, placeholderIcon) = if (conversation.group) {
         displayName = conversation.name
         Pair(
@@ -98,12 +110,32 @@ fun ConversationListItem(
 
         Spacer(Modifier.width(16.dp))
 
-        if (lastMessage != null) {
-            Text(
-                text = formatTimestamp(lastMessage.timestamp),
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                fontSize = 12.sp
-            )
+        // *** MODIFICATION: Column for timestamp and unread badge ***
+        Column(
+            horizontalAlignment = Alignment.End,
+            verticalArrangement = Arrangement.Center
+        ) {
+            if (lastMessage != null) {
+                Text(
+                    text = formatTimestamp(lastMessage.timestamp),
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                    fontSize = 12.sp
+                )
+            }
+            if (unreadCount > 0) {
+                Spacer(Modifier.height(4.dp))
+                Badge(
+                    containerColor = MaterialTheme.colorScheme.secondary
+                ) {
+                    Text(
+                        text = "$unreadCount",
+                        color = MaterialTheme.colorScheme.onSecondary,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 4.dp)
+                    )
+                }
+            }
         }
     }
 }

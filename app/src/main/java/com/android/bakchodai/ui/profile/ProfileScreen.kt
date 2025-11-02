@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults // Import
 import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -75,6 +76,9 @@ fun ProfileScreen(
 
     var showEditNameDialog by remember { mutableStateOf(false) }
     var showEditBioDialog by remember { mutableStateOf(false) }
+
+    // *** MODIFICATION: State for logout dialog ***
+    var showLogoutDialog by remember { mutableStateOf(false) }
 
     Column(
         modifier = modifier
@@ -159,7 +163,7 @@ fun ProfileScreen(
                 icon = Icons.Default.WorkspacePremium,
                 title = "Upgrade to Premium",
                 subtitle = "Create unlimited custom AI characters!",
-                onClick = onUpgradeClick,
+                onClick = onUpgradeClick, // *** MODIFICATION: This now navigates to PremiumScreen ***
                 titleColor = MaterialTheme.colorScheme.secondary
             )
         }
@@ -170,7 +174,7 @@ fun ProfileScreen(
             icon = Icons.Default.ExitToApp,
             title = "Logout",
             subtitle = "",
-            onClick = onLogoutClick,
+            onClick = { showLogoutDialog = true }, // *** MODIFICATION: Show dialog ***
             titleColor = MaterialTheme.colorScheme.error
         )
 
@@ -233,6 +237,27 @@ fun ProfileScreen(
                     bio = user?.bio ?: ""
                     showEditBioDialog = false
                 }) { Text("Cancel") }
+            }
+        )
+    }
+
+    // *** MODIFICATION: Add logout confirmation dialog ***
+    if (showLogoutDialog) {
+        AlertDialog(
+            onDismissRequest = { showLogoutDialog = false },
+            title = { Text("Logout") },
+            text = { Text("Are you sure you want to logout?") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        onLogoutClick()
+                        showLogoutDialog = false
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) { Text("Logout") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showLogoutDialog = false }) { Text("Cancel") }
             }
         )
     }

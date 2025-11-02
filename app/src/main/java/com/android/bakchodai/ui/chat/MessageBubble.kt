@@ -1,8 +1,12 @@
 package com.android.bakchodai.ui.chat
 
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.awaitHorizontalDragOrCancellation
+import androidx.compose.foundation.gestures.drag
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -48,8 +52,11 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -58,8 +65,6 @@ import com.android.bakchodai.data.model.Conversation
 import com.android.bakchodai.data.model.Message
 import com.android.bakchodai.data.model.MessageType
 import com.android.bakchodai.data.model.User
-import com.android.bakchodai.ui.theme.WhatsAppDarkSentBubble
-import com.android.bakchodai.ui.theme.WhatsAppSentBubble
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -106,41 +111,57 @@ fun MessageBubble(
     val selectionColor =
         if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) else Color.Transparent
 
+    val hapticFeedback = LocalHapticFeedback.current
     var swipeOffset by remember { mutableStateOf(0f) }
-    val swipeThreshold = 150f
+    val animatedSwipeOffset by animateFloatAsState(
+        targetValue = swipeOffset,
+        label = "SwipeOffsetAnimation"
+    )
 
-    val bubbleModifier = Modifier
+    val swipeThreshold = 150f
+    val dragResistance = 0.25f
+
+    val rowModifier = Modifier
+        .fillMaxWidth()
+        .background(selectionColor)
+        .padding(horizontal = 8.dp, vertical = 2.dp)
+        .graphicsLayer(translationX = animatedSwipeOffset)
         .pointerInput(Unit) {
-            detectTapGestures(
-                onLongPress = { onLongPress() },
-                onTap = { showEmojiPicker = !showEmojiPicker }
-            )
-        }
-        .pointerInput(Unit) {
-            detectDragGestures(
-                onDragStart = { swipeOffset = 0f },
-                onDragEnd = {
-                    if (abs(swipeOffset) > swipeThreshold) {
-                        onSwipeToReply()
-                    }
-                    swipeOffset = 0f
-                },
-                onDrag = { change, dragAmount ->
-                    if (dragAmount.x > 0) {
-                        swipeOffset =
-                            (swipeOffset + dragAmount.x).coerceIn(0f, swipeThreshold + 50f)
-                        change.consume()
+            awaitEachGesture {
+                val down = awaitFirstDown(requireUnconsumed = false)
+
+                val dragStart = awaitHorizontalDragOrCancellation(down.id)
+
+                if (dragStart != null) {
+                    if (dragStart.positionChange().x > 0) {
+                        dragStart.consume()
+
+                        var totalDrag = 0f
+
+                        val dragSuccessful = drag(dragStart.id) { change ->
+                            val horizontalChange = change.positionChange().x
+
+                            if (horizontalChange > 0) {
+                                change.consume()
+                                totalDrag += horizontalChange
+                                swipeOffset = (totalDrag * dragResistance).coerceIn(0f, swipeThreshold + 100f)
+                            } else {
+                                change.consume()
+                            }
+                        }
+
+                        if (dragSuccessful && swipeOffset > swipeThreshold) {
+                            hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                            onSwipeToReply()
+                        }
                     }
                 }
-            )
+                swipeOffset = 0f
+            }
         }
-        .graphicsLayer(translationX = swipeOffset)
 
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(selectionColor)
-            .padding(horizontal = 8.dp, vertical = 2.dp),
+        modifier = rowModifier, // Apply the new modifier here
         verticalAlignment = Alignment.Bottom,
         horizontalArrangement = if (isFromMe) Arrangement.End else Arrangement.Start
     ) {
@@ -171,7 +192,13 @@ fun MessageBubble(
                         .shadow(1.dp, bubbleShape)
                         .clip(bubbleShape)
                         .background(bubbleColor)
-                        .then(bubbleModifier)
+                        // Only tap gestures remain on the bubble itself
+                        .pointerInput(Unit) {
+                            detectTapGestures(
+                                onLongPress = { onLongPress() },
+                                onTap = { showEmojiPicker = !showEmojiPicker }
+                            )
+                        }
                         .padding(horizontal = 12.dp, vertical = 8.dp)
                 ) {
                     Column {

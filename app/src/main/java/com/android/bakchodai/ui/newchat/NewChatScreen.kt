@@ -1,4 +1,3 @@
-// file: bakchodai/ui/newchat/NewChatScreen.kt
 package com.android.bakchodai.ui.newchat
 
 import androidx.compose.foundation.background
@@ -30,8 +29,10 @@ import com.android.bakchodai.data.model.User
 fun NewChatScreen(
     users: List<User>,
     isLoading: Boolean,
+    isUserPremium: Boolean, // *** MODIFICATION: Added ***
     onUserClick: (User) -> Unit,
     onAddAiClick: () -> Unit,
+    onNavigateToPremium: () -> Unit, // *** MODIFICATION: Added ***
     onBack: () -> Unit
 ) {
     Scaffold(
@@ -46,7 +47,15 @@ fun NewChatScreen(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = onAddAiClick,
+            FloatingActionButton(
+                onClick = {
+                    // *** MODIFICATION: Check premium status here ***
+                    if (isUserPremium) {
+                        onAddAiClick()
+                    } else {
+                        onNavigateToPremium()
+                    }
+                },
                 containerColor = MaterialTheme.colorScheme.secondary
             ) {
                 Icon(Icons.Default.Add, contentDescription = "Add AI Character")
@@ -78,7 +87,6 @@ fun NewChatScreen(
                         user = user,
                         onUserClick = onUserClick
                     )
-                    // Add divider, indented past the avatar
                     Divider(modifier = Modifier.padding(top = 8.dp, bottom = 8.dp, start = 88.dp))
                 }
             }
@@ -86,9 +94,6 @@ fun NewChatScreen(
     }
 }
 
-/**
- * A composable row item for displaying a user in a list.
- */
 @Composable
 private fun UserListItem(
     user: User,
@@ -98,24 +103,23 @@ private fun UserListItem(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onUserClick(user) }
-            .padding(horizontal = 16.dp, vertical = 12.dp), // Increased vertical padding
+            .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         AsyncImage(
-            model = user.resolveAvatarUrl(), // Use the correct function
+            model = user.resolveAvatarUrl(),
             contentDescription = "Profile Picture",
             modifier = Modifier
                 .size(50.dp)
                 .clip(CircleShape)
                 .background(MaterialTheme.colorScheme.surfaceVariant),
             contentScale = ContentScale.Crop,
-            placeholder = rememberVectorPainter(Icons.Filled.Person), // Placeholder
-            error = rememberVectorPainter(Icons.Filled.Person) // Error fallback
+            placeholder = rememberVectorPainter(Icons.Filled.Person),
+            error = rememberVectorPainter(Icons.Filled.Person)
         )
 
         Spacer(Modifier.width(16.dp))
 
-        // Updated text styling
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = user.name,
@@ -128,7 +132,7 @@ private fun UserListItem(
             val subtitle = if (user.uid.startsWith("ai_")) {
                 user.personality.ifBlank { "AI Character" }
             } else {
-                "Human User" // In the future, this could be user.bio or "Tap to chat!"
+                "Human User"
             }
             Text(
                 text = subtitle,

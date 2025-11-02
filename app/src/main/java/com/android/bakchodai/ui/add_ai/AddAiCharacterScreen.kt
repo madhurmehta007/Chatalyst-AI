@@ -136,6 +136,7 @@ fun AddAiCharacterScreen(
                 )
                 Spacer(modifier = Modifier.height(24.dp))
                 Button(
+                    // *** MODIFICATION: Simplified check ***
                     onClick = { viewModel.addAiCharacter(name, personality, background, interests, style) },
                     enabled = !isLoading && name.isNotBlank() && personality.isNotBlank() && background.isNotBlank() && style.isNotBlank(),
                     modifier = Modifier.fillMaxWidth()

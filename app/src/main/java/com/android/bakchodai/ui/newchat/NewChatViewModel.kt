@@ -27,10 +27,16 @@ class NewChatViewModel @Inject constructor(private val repository: ConversationR
     val users: StateFlow<List<User>> = repository.getUsersFlow()
         .map { users ->
             _isLoading.value = false
-            // *** MODIFICATION: Filter out the current user, but show all others ***
             users.filter { it.uid != currentUserId }
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    // *** MODIFICATION: Expose isUserPremium state ***
+    val isUserPremium: StateFlow<Boolean> = repository.getUsersFlow()
+        .map { users ->
+            users.find { it.uid == currentUserId }?.isPremium ?: false
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
     private val _navigateToConversation = MutableStateFlow<String?>(null)
     val navigateToConversation: StateFlow<String?> = _navigateToConversation

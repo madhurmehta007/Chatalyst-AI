@@ -16,7 +16,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf // Import
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue // Import
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -38,7 +40,10 @@ import com.android.bakchodai.ui.main.MainScreen
 import com.android.bakchodai.ui.main.MainViewModel
 import com.android.bakchodai.ui.newchat.NewChatScreen
 import com.android.bakchodai.ui.newchat.NewChatViewModel
+import com.android.bakchodai.ui.premium.PremiumScreen // Import PremiumScreen
 import com.android.bakchodai.ui.profile.ProfileScreen
+import com.android.bakchodai.ui.splash.SplashScreen // Import SplashScreen
+import kotlinx.coroutines.delay // Import
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -48,207 +53,236 @@ fun AppNavigation() {
     val authState by authViewModel.authState.collectAsState()
     val authIsLoading by authViewModel.isLoading.collectAsState()
 
-    when (authState) {
-        AuthState.LOGGED_OUT -> AuthScreen(authViewModel, authIsLoading)
-        AuthState.INITIALIZING -> {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
-            }
-        }
+    // *** MODIFICATION: Add splash screen state ***
+    var isSplashing by remember { mutableStateOf(true) }
 
-        AuthState.LOGGED_IN -> {
-            val navController = rememberNavController()
+    LaunchedEffect(Unit) {
+        delay(2000) // Show splash for 2 seconds
+        isSplashing = false
+    }
 
-            NavHost(navController = navController, startDestination = "main") {
-                composable("main") {
-                    val mainViewModel: MainViewModel = hiltViewModel()
-                    MainScreen(
-                        mainViewModel = mainViewModel,
-                        authViewModel = authViewModel,
-                        onConversationClick = { conversationId ->
-                            navController.navigate("chat/$conversationId")
-                        },
-                        onProfileClick = {
-                            navController.navigate("profile")
-                        },
-                        onNewChatClick = { navController.navigate("new_chat") },
-                        onNewGroupClick = { navController.navigate("create_group") }
-                    )
+    if (isSplashing) {
+        SplashScreen()
+    } else {
+        when (authState) {
+            AuthState.LOGGED_OUT -> AuthScreen(authViewModel, authIsLoading)
+            AuthState.INITIALIZING -> {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
                 }
+            }
 
-                composable("profile") {
-                    val mainViewModel: MainViewModel = hiltViewModel()
-                    val user by mainViewModel.currentUser.collectAsState()
+            AuthState.LOGGED_IN -> {
+                val navController = rememberNavController()
 
-                    Scaffold(
-                        topBar = {
-                            TopAppBar(
-                                title = { Text("Profile") },
-                                navigationIcon = {
-                                    IconButton(onClick = { navController.popBackStack() }) {
-                                        Icon(Icons.Filled.ArrowBack, contentDescription = "Back")
+                NavHost(navController = navController, startDestination = "main") {
+                    composable("main") {
+                        val mainViewModel: MainViewModel = hiltViewModel()
+                        MainScreen(
+                            mainViewModel = mainViewModel,
+                            authViewModel = authViewModel,
+                            onConversationClick = { conversationId ->
+                                navController.navigate("chat/$conversationId")
+                            },
+                            onProfileClick = {
+                                navController.navigate("profile")
+                            },
+                            onNewChatClick = { navController.navigate("new_chat") },
+                            onNewGroupClick = { navController.navigate("create_group") }
+                        )
+                    }
+
+                    composable("profile") {
+                        val mainViewModel: MainViewModel = hiltViewModel()
+                        val user by mainViewModel.currentUser.collectAsState()
+
+                        Scaffold(
+                            topBar = {
+                                TopAppBar(
+                                    title = { Text("Profile") },
+                                    navigationIcon = {
+                                        IconButton(onClick = { navController.popBackStack() }) {
+                                            Icon(Icons.Filled.ArrowBack, contentDescription = "Back")
+                                        }
                                     }
-                                }
+                                )
+                            }
+                        ) { paddingValues ->
+                            ProfileScreen(
+                                user = user,
+                                onSaveClick = { newName -> authViewModel.updateUserName(newName) },
+                                onSaveBio = { newBio -> authViewModel.updateUserBio(newBio) },
+                                onLogoutClick = { authViewModel.logout() },
+                                // *** MODIFICATION: Navigate to premium screen ***
+                                onUpgradeClick = { navController.navigate("premium") },
+                                modifier = Modifier.padding(paddingValues)
                             )
                         }
-                    ) { paddingValues ->
-                        ProfileScreen(
-                            user = user,
-                            onSaveClick = { newName -> authViewModel.updateUserName(newName) },
-                            onSaveBio = { newBio -> authViewModel.updateUserBio(newBio) },
-                            onLogoutClick = { authViewModel.logout() },
-                            onUpgradeClick = { authViewModel.upgradeToPremium() },
-                            modifier = Modifier.padding(paddingValues)
-                        )
-                    }
-                }
-
-                composable("new_chat") {
-                    val newChatViewModel: NewChatViewModel = hiltViewModel()
-                    val users by newChatViewModel.users.collectAsState()
-                    val isLoading by newChatViewModel.isLoading.collectAsState()
-                    val conversationId by newChatViewModel.navigateToConversation.collectAsState()
-
-                    NewChatScreen(
-                        users = users,
-                        isLoading = isLoading,
-                        onUserClick = { user ->
-                            newChatViewModel.findOrCreateConversation(user)
-                        },
-                        onAddAiClick = {
-                            navController.navigate("add_ai_character")
-                        },
-                        onBack = { navController.popBackStack() }
-                    )
-
-                    LaunchedEffect(conversationId) {
-                        conversationId?.let {
-                            navController.navigate("chat/$it") {
-                                popUpTo("new_chat") { inclusive = true }
-                            }
-                        }
-                    }
-                }
-
-                composable("add_ai_character") {
-                    val addAiViewModel: AddAiCharacterViewModel = hiltViewModel()
-                    AddAiCharacterScreen(
-                        viewModel = addAiViewModel,
-                        onBack = { navController.popBackStack() },
-                        onAddSuccess = { navController.popBackStack() }
-                    )
-                }
-
-                composable("create_group") {
-                    val createGroupViewModel: CreateGroupViewModel = hiltViewModel()
-                    val users by createGroupViewModel.users.collectAsState()
-                    val isLoading by createGroupViewModel.isLoading.collectAsState()
-                    val groupCreated by createGroupViewModel.groupCreated.collectAsState()
-
-                    CreateGroupScreen(
-                        users = users,
-                        isLoading = isLoading,
-                        onCreateGroup = { name, participantIds, topic ->
-                            createGroupViewModel.createGroup(name, participantIds, topic)
-                        },
-                        onBack = { navController.popBackStack() }
-                    )
-
-                    LaunchedEffect(groupCreated) {
-                        groupCreated?.let {
-                            navController.navigate("chat/$it") {
-                                popUpTo("create_group") { inclusive = true }
-                            }
-                        }
-                    }
-                }
-
-                composable("chat/{conversationId}") { backStackEntry ->
-                    val conversationId = backStackEntry.arguments?.getString("conversationId")!!
-                    val chatViewModel: ChatViewModel = hiltViewModel()
-                    LaunchedEffect(conversationId) {
-                        chatViewModel.loadConversation(conversationId)
                     }
 
-                    val conversation by chatViewModel.conversation.collectAsState()
-                    val users by chatViewModel.users.collectAsState()
-                    val typingUsers by chatViewModel.typingUsers.collectAsState()
-                    val isLoading by chatViewModel.isLoading.collectAsState()
-                    val isUploading by chatViewModel.isUploading.collectAsState()
-                    val replyToMessage by chatViewModel.replyToMessage.collectAsState()
-                    val searchQuery by chatViewModel.searchQuery.collectAsState()
-                    val filteredMessages by chatViewModel.filteredMessages.collectAsState()
-                    val isRecording by chatViewModel.isRecording.collectAsState()
-                    val nowPlayingMessageId by chatViewModel.nowPlayingMessageId.collectAsState()
-                    val playbackState by chatViewModel.playbackState.collectAsState()
+                    composable("new_chat") {
+                        val newChatViewModel: NewChatViewModel = hiltViewModel()
+                        val users by newChatViewModel.users.collectAsState()
+                        val isLoading by newChatViewModel.isLoading.collectAsState()
+                        val conversationId by newChatViewModel.navigateToConversation.collectAsState()
+                        // *** MODIFICATION: Get premium status ***
+                        val isUserPremium by newChatViewModel.isUserPremium.collectAsState()
 
-                    if (isLoading) {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            CircularProgressIndicator()
-                        }
-                    } else if (conversation == null) {
-                        LaunchedEffect(Unit) {
-                            navController.popBackStack()
-                        }
-                    } else {
-                        ChatScreen(
-                            conversation = conversation!!,
+                        NewChatScreen(
                             users = users,
-                            isUploading = isUploading,
-                            isAiTyping = false,
-                            typingUsers = typingUsers,
-                            onSendMessage = { message ->
-                                chatViewModel.sendMessage(conversationId, message)
+                            isLoading = isLoading,
+                            isUserPremium = isUserPremium, // Pass state
+                            onUserClick = { user ->
+                                newChatViewModel.findOrCreateConversation(user)
                             },
-                            onSendMedia = { uri ->
-                                chatViewModel.sendImage(conversationId, uri)
+                            onAddAiClick = {
+                                navController.navigate("add_ai_character")
                             },
-                            onEmojiReact = { messageId, emoji ->
-                                chatViewModel.addEmojiReaction(conversationId, messageId, emoji)
+                            // *** MODIFICATION: Add navigation to premium ***
+                            onNavigateToPremium = {
+                                navController.navigate("premium")
                             },
-                            onEditMessage = { messageId, newText ->
-                                chatViewModel.editMessage(conversationId, messageId, newText)
-                            },
-                            onDeleteMessage = { messageId ->
-                                chatViewModel.deleteMessage(conversationId, messageId)
-                            },
-                            onNavigateToEditGroup = {
-                                navController.navigate("edit_group/$conversationId")
-                            },
-                            onDeleteGroup = {
-                                chatViewModel.deleteGroup(conversationId)
-                            },
+                            onBack = { navController.popBackStack() }
+                        )
+
+                        LaunchedEffect(conversationId) {
+                            conversationId?.let {
+                                navController.navigate("chat/$it") {
+                                    popUpTo("new_chat") { inclusive = true }
+                                }
+                            }
+                        }
+                    }
+
+                    composable("add_ai_character") {
+                        val addAiViewModel: AddAiCharacterViewModel = hiltViewModel()
+                        AddAiCharacterScreen(
+                            viewModel = addAiViewModel,
                             onBack = { navController.popBackStack() },
-                            replyToMessage = replyToMessage,
-                            onSetReplyToMessage = { message ->
-                                chatViewModel.setReplyToMessage(message)
-                            },
-                            filteredMessages = filteredMessages,
-                            searchQuery = searchQuery,
-                            onSearchQueryChanged = { query ->
-                                chatViewModel.onSearchQueryChanged(query)
-                            },
-                            isRecording = isRecording,
-                            nowPlayingMessageId = nowPlayingMessageId,
-                            playbackState = playbackState,
-                            onStartRecording = { chatViewModel.startRecording() },
-                            onStopRecording = { chatViewModel.stopAndSendRecording(conversationId) },
-                            onPlayAudio = { chatViewModel.playAudio(it) },
-                            onSeekAudio = { message, progress ->
-                                chatViewModel.onSeekAudio(message, progress)
-                            },
-                            onStopAudio = { chatViewModel.stopAudioOnDispose() }
+                            onAddSuccess = { navController.popBackStack() }
                         )
                     }
-                }
 
-                composable("edit_group/{conversationId}") { backStackEntry ->
-                    EditGroupScreen(
-                        onBack = { navController.popBackStack() }
-                    )
+                    composable("create_group") {
+                        val createGroupViewModel: CreateGroupViewModel = hiltViewModel()
+                        val users by createGroupViewModel.users.collectAsState()
+                        val isLoading by createGroupViewModel.isLoading.collectAsState()
+                        val groupCreated by createGroupViewModel.groupCreated.collectAsState()
+
+                        CreateGroupScreen(
+                            users = users,
+                            isLoading = isLoading,
+                            onCreateGroup = { name, participantIds, topic ->
+                                createGroupViewModel.createGroup(name, participantIds, topic)
+                            },
+                            onBack = { navController.popBackStack() }
+                        )
+
+                        LaunchedEffect(groupCreated) {
+                            groupCreated?.let {
+                                navController.navigate("chat/$it") {
+                                    popUpTo("create_group") { inclusive = true }
+                                }
+                            }
+                        }
+                    }
+
+                    composable("chat/{conversationId}") { backStackEntry ->
+                        val conversationId = backStackEntry.arguments?.getString("conversationId")!!
+                        val chatViewModel: ChatViewModel = hiltViewModel()
+                        LaunchedEffect(conversationId) {
+                            chatViewModel.loadConversation(conversationId)
+                        }
+
+                        val conversation by chatViewModel.conversation.collectAsState()
+                        val users by chatViewModel.users.collectAsState()
+                        val typingUsers by chatViewModel.typingUsers.collectAsState()
+                        val isLoading by chatViewModel.isLoading.collectAsState()
+                        val isUploading by chatViewModel.isUploading.collectAsState()
+                        val replyToMessage by chatViewModel.replyToMessage.collectAsState()
+                        val searchQuery by chatViewModel.searchQuery.collectAsState()
+                        val filteredMessages by chatViewModel.filteredMessages.collectAsState()
+                        val isRecording by chatViewModel.isRecording.collectAsState()
+                        val nowPlayingMessageId by chatViewModel.nowPlayingMessageId.collectAsState()
+                        val playbackState by chatViewModel.playbackState.collectAsState()
+
+                        if (isLoading) {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                CircularProgressIndicator()
+                            }
+                        } else if (conversation == null) {
+                            LaunchedEffect(Unit) {
+                                navController.popBackStack()
+                            }
+                        } else {
+                            ChatScreen(
+                                conversation = conversation!!,
+                                users = users,
+                                isUploading = isUploading,
+                                isAiTyping = false,
+                                typingUsers = typingUsers,
+                                onSendMessage = { message ->
+                                    chatViewModel.sendMessage(conversationId, message)
+                                },
+                                onSendMedia = { uri ->
+                                    chatViewModel.sendImage(conversationId, uri)
+                                },
+                                onEmojiReact = { messageId, emoji ->
+                                    chatViewModel.addEmojiReaction(conversationId, messageId, emoji)
+                                },
+                                onEditMessage = { messageId, newText ->
+                                    chatViewModel.editMessage(conversationId, messageId, newText)
+                                },
+                                onDeleteMessage = { messageId ->
+                                    chatViewModel.deleteMessage(conversationId, messageId)
+                                },
+                                onNavigateToEditGroup = {
+                                    navController.navigate("edit_group/$conversationId")
+                                },
+                                onDeleteGroup = {
+                                    chatViewModel.deleteGroup(conversationId)
+                                },
+                                onBack = { navController.popBackStack() },
+                                replyToMessage = replyToMessage,
+                                onSetReplyToMessage = { message ->
+                                    chatViewModel.setReplyToMessage(message)
+                                },
+                                filteredMessages = filteredMessages,
+                                searchQuery = searchQuery,
+                                onSearchQueryChanged = { query ->
+                                    chatViewModel.onSearchQueryChanged(query)
+                                },
+                                isRecording = isRecording,
+                                nowPlayingMessageId = nowPlayingMessageId,
+                                playbackState = playbackState,
+                                onStartRecording = { chatViewModel.startRecording() },
+                                onStopRecording = { chatViewModel.stopAndSendRecording(conversationId) },
+                                onPlayAudio = { chatViewModel.playAudio(it) },
+                                onSeekAudio = { message, progress ->
+                                    chatViewModel.onSeekAudio(message, progress)
+                                },
+                                onStopAudio = { chatViewModel.stopAudioOnDispose() }
+                            )
+                        }
+                    }
+
+                    composable("edit_group/{conversationId}") { backStackEntry ->
+                        EditGroupScreen(
+                            onBack = { navController.popBackStack() }
+                        )
+                    }
+
+                    composable("premium") {
+                        PremiumScreen(
+                            onBack = { navController.popBackStack() },
+                            onSubscribeClick = {
+                                // TODO: Implement payment logic
+                            }
+                        )
+                    }
                 }
             }
         }
