@@ -23,7 +23,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.android.bakchodai.data.model.User
 import com.android.bakchodai.data.repository.FirebaseConversationRepository
 import com.android.bakchodai.ui.add_ai.AddAiCharacterScreen
 import com.android.bakchodai.ui.add_ai.AddAiCharacterViewModel
@@ -179,6 +178,10 @@ fun AppNavigation() {
                     val replyToMessage by chatViewModel.replyToMessage.collectAsState()
                     val searchQuery by chatViewModel.searchQuery.collectAsState()
                     val filteredMessages by chatViewModel.filteredMessages.collectAsState()
+                    val isRecording by chatViewModel.isRecording.collectAsState()
+                    val nowPlayingMessageId by chatViewModel.nowPlayingMessageId.collectAsState()
+                    val playbackState by chatViewModel.playbackState.collectAsState()
+
                     if (isLoading) {
                         Box(
                             modifier = Modifier.fillMaxSize(),
@@ -227,7 +230,17 @@ fun AppNavigation() {
                             searchQuery = searchQuery,
                             onSearchQueryChanged = { query ->
                                 chatViewModel.onSearchQueryChanged(query)
-                            }
+                            },
+                            isRecording = isRecording,
+                            nowPlayingMessageId = nowPlayingMessageId,
+                            playbackState = playbackState,
+                            onStartRecording = { chatViewModel.startRecording() },
+                            onStopRecording = { chatViewModel.stopAndSendRecording(conversationId) },
+                            onPlayAudio = { chatViewModel.playAudio(it) },
+                            onSeekAudio = { message, progress ->
+                                chatViewModel.onSeekAudio(message, progress)
+                            },
+                            onStopAudio = { chatViewModel.stopAudioOnDispose() }
                         )
                     }
                 }

@@ -22,18 +22,24 @@ import androidx.compose.material.icons.filled.BrokenImage
 import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.filled.DoneAll
 import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -57,6 +63,7 @@ import com.android.bakchodai.ui.theme.WhatsAppSentBubble
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.util.concurrent.TimeUnit
 import kotlin.math.abs
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -71,7 +78,11 @@ fun MessageBubble(
     currentUserId: String,
     onLongPress: () -> Unit,
     onEmojiReact: (String) -> Unit,
-    onSwipeToReply: () -> Unit
+    onSwipeToReply: () -> Unit,
+    isPlaying: Boolean,
+    playbackProgress: Float,
+    onPlayAudio: () -> Unit,
+    onSeekAudio: (Float) -> Unit
 ) {
     val bubbleShape = if (isFromMe) {
         RoundedCornerShape(topStart = 16.dp, bottomStart = 16.dp, topEnd = 16.dp, bottomEnd = 4.dp)
@@ -213,7 +224,16 @@ fun MessageBubble(
                                 placeholder = rememberVectorPainter(Icons.Filled.Image),
                                 error = rememberVectorPainter(Icons.Default.BrokenImage)
                             )
-                        } else {
+                        }else if (message.type == MessageType.AUDIO) {
+                            AudioMessagePlayer(
+                                isPlaying = isPlaying,
+                                progress = playbackProgress,
+                                durationMs = message.audioDurationMs,
+                                onPlayClick = onPlayAudio,
+                                onSeek = onSeekAudio
+                            )
+                        }
+                        else {
                             Text(text = message.content, color = textColor)
                         }
 
@@ -318,4 +338,66 @@ fun MessageBubble(
             }
         }
     }
+}
+
+@Composable
+private fun AudioMessagePlayer(
+    isPlaying: Boolean,
+    progress: Float,
+    durationMs: Long,
+    onPlayClick: () -> Unit,
+    onSeek: (Float) -> Unit
+) {
+    var localSliderPosition by remember { mutableStateOf(0f) }
+
+    var isDragging by remember { mutableStateOf(false) }
+
+    val onSeekState = rememberUpdatedState(onSeek)
+
+    LaunchedEffect(progress, isDragging) {
+        if (!isDragging) {
+            localSliderPosition = progress
+        }
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth(0.6f)
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        IconButton(onClick = onPlayClick, modifier = Modifier.size(36.dp)) {
+            Icon(
+                imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                contentDescription = "Play/Pause Audio"
+            )
+        }
+
+        Slider(
+            value = localSliderPosition,
+            onValueChange = { newPosition ->
+                localSliderPosition = newPosition
+                isDragging = true
+            },
+            onValueChangeFinished = {
+                onSeekState.value(localSliderPosition)
+                isDragging = false
+            },
+            modifier = Modifier.weight(1f)
+        )
+
+        val currentTimeMs = (localSliderPosition * durationMs).toLong()
+        Text(
+            text = "${formatDuration(currentTimeMs)} / ${formatDuration(durationMs)}",
+            style = MaterialTheme.typography.labelSmall,
+            modifier = Modifier.padding(start = 8.dp)
+        )
+    }
+}
+
+private fun formatDuration(ms: Long): String {
+    if (ms <= 0L) return "00:00"
+    val minutes = TimeUnit.MILLISECONDS.toMinutes(ms)
+    val seconds = TimeUnit.MILLISECONDS.toSeconds(ms) % 60
+    return String.format("%02d:%02d", minutes, seconds)
 }

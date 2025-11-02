@@ -1,9 +1,13 @@
 package com.android.bakchodai.ui.chat
 
+import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.android.bakchodai.data.AudioPlayer
+import com.android.bakchodai.data.AudioRecorder
+import com.android.bakchodai.data.PlaybackState
 import com.android.bakchodai.data.model.Conversation
 import com.android.bakchodai.data.model.Message
 import com.android.bakchodai.data.model.MessageType
@@ -25,6 +29,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import java.io.File
 import java.util.UUID
 import javax.inject.Inject
 
@@ -32,11 +37,22 @@ import javax.inject.Inject
 class ChatViewModel @Inject constructor(
     private val repository: ConversationRepository,
     private val aiService: AiService,
-    private val storage: FirebaseStorage
+    private val storage: FirebaseStorage,
+    private val audioRecorder: AudioRecorder,
+    private val audioPlayer: AudioPlayer
 ) : ViewModel() {
 
     private val _conversation = MutableStateFlow<Conversation?>(null)
     val conversation: StateFlow<Conversation?> = _conversation
+
+    private val _isRecording = MutableStateFlow(false)
+    val isRecording: StateFlow<Boolean> = _isRecording.asStateFlow()
+
+    private val _nowPlayingMessageId = MutableStateFlow<String?>(null)
+    val nowPlayingMessageId: StateFlow<String?> = _nowPlayingMessageId.asStateFlow()
+
+    private val _playbackState = MutableStateFlow(PlaybackState())
+    val playbackState: StateFlow<PlaybackState> = _playbackState.asStateFlow()
 
     private val _users = MutableStateFlow<List<User>>(emptyList())
     val users: StateFlow<List<User>> = _users
@@ -77,6 +93,15 @@ class ChatViewModel @Inject constructor(
                 }
             }.collectLatest { typingUserList ->
                 _typingUsers.value = typingUserList
+            }
+        }
+
+        viewModelScope.launch {
+            audioPlayer.playbackState.collect { state ->
+                _playbackState.value = state
+                if (!state.isPlaying && state.progressMs == 0 && state.durationMs == 0) {
+                    _nowPlayingMessageId.value = null
+                }
             }
         }
     }
@@ -269,5 +294,89 @@ class ChatViewModel @Inject constructor(
                 _isUploading.value = false
             }
         }
+    }
+
+    fun startRecording() {
+        audioRecorder.start()
+        _isRecording.value = true
+    }
+
+    fun stopAndSendRecording(conversationId: String) {
+        val audioFile = audioRecorder.stop()
+        _isRecording.value = false
+        if (audioFile != null) {
+            sendAudio(conversationId, audioFile)
+        }
+    }
+
+    private fun getAudioDuration(file: File): Long {
+        return try {
+            val retriever = MediaMetadataRetriever()
+            retriever.setDataSource(file.absolutePath)
+            val durationStr = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
+            retriever.release()
+            durationStr?.toLongOrNull() ?: 0L
+        } catch (e: Exception) {
+            Log.e("ChatViewModel", "Failed to get audio duration", e)
+            0L
+        }
+    }
+
+    private fun sendAudio(conversationId: String, audioFile: File) {
+        val currentUser = Firebase.auth.currentUser ?: return
+        viewModelScope.launch {
+            _isUploading.value = true
+            try {
+                val audioId = UUID.randomUUID().toString()
+                val storageRef = storage.reference
+                    .child("audio/$conversationId/$audioId.m4a")
+
+                val audioDuration = getAudioDuration(audioFile)
+
+                storageRef.putFile(Uri.fromFile(audioFile)).await()
+                val downloadUrl = storageRef.downloadUrl.await().toString()
+
+                val audioMessage = Message(
+                    senderId = currentUser.uid,
+                    content = downloadUrl,
+                    timestamp = System.currentTimeMillis(),
+                    type = MessageType.AUDIO,
+                    audioDurationMs = audioDuration
+                )
+                repository.addMessage(conversationId, audioMessage)
+                audioFile.delete()
+            } catch (e: Exception) {
+                Log.e("ChatViewModel", "Error uploading audio", e)
+            } finally {
+                _isUploading.value = false
+            }
+        }
+    }
+
+    fun playAudio(message: Message) {
+        val currentState = _playbackState.value
+
+        if (message.id == _nowPlayingMessageId.value) {
+            if (currentState.isPlaying) {
+                audioPlayer.pause()
+            } else {
+                audioPlayer.resume()
+            }
+        } else {
+            _nowPlayingMessageId.value = message.id
+            audioPlayer.play(message.content)
+        }
+    }
+
+    fun onSeekAudio(message: Message, progress: Float) {
+        if (message.id == _nowPlayingMessageId.value) {
+            val targetMs = (message.audioDurationMs * progress).toInt()
+            audioPlayer.seekTo(targetMs)
+        }
+    }
+
+    fun stopAudioOnDispose() {
+        audioPlayer.stop()
+        _nowPlayingMessageId.value = null
     }
 }

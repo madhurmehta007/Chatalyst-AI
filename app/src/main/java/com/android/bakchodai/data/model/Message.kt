@@ -14,5 +14,6 @@ data class Message(
     val readBy: Map<String, Long> = emptyMap(),
     val replyToMessageId: String? = null,
     val replyPreview: String? = null,
-    val replySenderName: String? = null
+    val replySenderName: String? = null,
+    val audioDurationMs: Long = 0L
 )

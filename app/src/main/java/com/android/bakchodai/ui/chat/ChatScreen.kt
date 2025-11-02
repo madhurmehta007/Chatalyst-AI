@@ -47,6 +47,7 @@ import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -60,7 +61,11 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import coil.compose.AsyncImage
+import com.android.bakchodai.data.PlaybackState
 import com.android.bakchodai.data.model.Conversation
 import com.android.bakchodai.data.model.Message
 import com.android.bakchodai.data.model.User
@@ -87,7 +92,15 @@ fun ChatScreen(
     onSetReplyToMessage: (Message?) -> Unit,
     filteredMessages: List<Message>,
     searchQuery: String,
-    onSearchQueryChanged: (String) -> Unit
+    onSearchQueryChanged: (String) -> Unit,
+    isRecording: Boolean,
+    nowPlayingMessageId: String?,
+    playbackState: PlaybackState,
+    onStartRecording: () -> Unit,
+    onStopRecording: () -> Unit,
+    onPlayAudio: (Message) -> Unit,
+    onSeekAudio: (Message, Float) -> Unit,
+    onStopAudio: () -> Unit
 ) {
     val usersById = users.associateBy { it.uid }
     val currentUserId = Firebase.auth.currentUser?.uid
@@ -98,6 +111,30 @@ fun ChatScreen(
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showDeleteGroupDialog by remember { mutableStateOf(false) }
     var isSearchActive by remember { mutableStateOf(false) }
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            onStartRecording()
+        } else {
+            Toast.makeText(context, "Mic permission denied", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_STOP) {
+                onStopAudio()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+            onStopAudio()
+        }
+    }
 
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia(),
@@ -171,6 +208,12 @@ fun ChatScreen(
                             name = "Unknown"
                         )
                         if (message.id.isNotBlank()) {
+                            val isThisMessagePlaying = message.id == nowPlayingMessageId
+                            val progress = if (isThisMessagePlaying && playbackState.durationMs > 0) {
+                                (playbackState.progressMs.toFloat() / playbackState.durationMs.toFloat()).coerceIn(0f, 1f)
+                            } else {
+                                0f
+                            }
                             MessageBubble(
                                 message = message,
                                 isFromMe = message.senderId == currentUserId,
@@ -181,7 +224,11 @@ fun ChatScreen(
                                 currentUserId = currentUserId!!,
                                 onLongPress = { selectedMessageId = message.id },
                                 onEmojiReact = { emoji -> onEmojiReact(message.id, emoji) },
-                                onSwipeToReply = { onSetReplyToMessage(message) }
+                                onSwipeToReply = { onSetReplyToMessage(message) },
+                                isPlaying = isThisMessagePlaying && playbackState.isPlaying,
+                                playbackProgress = progress,
+                                onPlayAudio = { onPlayAudio(message) },
+                                onSeekAudio = { newProgress -> onSeekAudio(message, newProgress) }
                             )
                         } else {
                             Log.w(
@@ -199,7 +246,12 @@ fun ChatScreen(
                         )
                     },
                     replyToMessage = replyToMessage,
-                    onCancelReply = { onSetReplyToMessage(null) }
+                    onCancelReply = { onSetReplyToMessage(null) },
+                    isRecording = isRecording,
+                    onStartRecording = {
+                        permissionLauncher.launch(android.Manifest.permission.RECORD_AUDIO)
+                    },
+                    onStopRecording = onStopRecording
                 )
             }
             if (isUploading) {
