@@ -1,6 +1,8 @@
 package com.android.bakchodai
 
 import android.Manifest
+import android.app.NotificationManager // Import
+import android.content.Context // Import
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -31,7 +33,6 @@ class MainActivity : ComponentActivity() {
     @Inject lateinit var repository: ConversationRepository
     @Inject lateinit var auth: FirebaseAuth
 
-    // *** MODIFICATION: Add permission launcher ***
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted: Boolean ->
@@ -42,25 +43,54 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private val requestMediaPermissionsLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val allGranted = permissions.entries.all { it.value }
+        if (allGranted) {
+            Log.d("MainActivity", "All media permissions granted")
+        } else {
+            Log.w("MainActivity", "Not all media permissions were granted")
+        }
+    }
+
     private fun askNotificationPermission() {
-        // This is only necessary for API >= 33 (TIRAMISU)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) ==
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) !=
                 PackageManager.PERMISSION_GRANTED
             ) {
-                // Permission is already granted
-            } else {
-                // Directly ask for the permission
                 requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
             }
         }
     }
 
+    private fun askMediaPermissions() {
+        val permissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            arrayOf(Manifest.permission.READ_MEDIA_IMAGES, Manifest.permission.READ_MEDIA_VIDEO)
+        } else {
+            arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE)
+        }
+
+        val permissionsToRequest = permissions.filter {
+            ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
+        }
+
+        if (permissionsToRequest.isNotEmpty()) {
+            requestMediaPermissionsLauncher.launch(permissionsToRequest.toTypedArray())
+        }
+    }
+
+    private fun clearNotifications() {
+        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        notificationManager.cancelAll()
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // *** MODIFICATION: Ask for permission on create ***
         askNotificationPermission()
+        askMediaPermissions()
+        clearNotifications()
 
         setContent {
             val isDarkTheme by ThemeHelper.isDarkTheme(LocalContext.current)
@@ -78,20 +108,19 @@ class MainActivity : ComponentActivity() {
 
     override fun onStart() {
         super.onStart()
-        // Set user to ONLINE when app comes to foreground
+        clearNotifications()
+
         auth.currentUser?.uid?.let { uid ->
             Log.d("MainActivity", "Setting user ONLINE: $uid")
             lifecycleScope.launch {
                 repository.updateUserPresence(uid, true)
             }
-            // Set the onDisconnect hook
             repository.setOfflineOnDisconnect(uid)
         }
     }
 
     override fun onStop() {
         super.onStop()
-        // Set user to OFFLINE when app goes to background
         auth.currentUser?.uid?.let { uid ->
             Log.d("MainActivity", "Setting user OFFLINE: $uid")
             lifecycleScope.launch {

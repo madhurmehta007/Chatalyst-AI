@@ -19,7 +19,8 @@ data class UserEntity(
     val lastSeen: Long,
     val fcmToken: String = "",
     val bio: String = "",
-    val isPremium: Boolean = false
+    val isPremium: Boolean = false,
+    val avatarUploadTimestamp: Long = 0L
 )
 
 @Entity(tableName = "conversations")
@@ -30,7 +31,8 @@ data class ConversationEntity(
     val messages: Map<String, Message>,
     val isGroup: Boolean,
     val topic: String,
-    val typing: Map<String, Boolean>
+    val typing: Map<String, Boolean>,
+    val mutedUntil: Long = 0L
 )
 
 data class ConversationWithUsers(

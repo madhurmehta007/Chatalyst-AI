@@ -41,4 +41,8 @@ interface ConversationRepository {
     suspend fun updateUserFcmToken(uid: String, token: String)
 
     suspend fun updateUserPremiumStatus(uid: String, isPremium: Boolean)
+
+    suspend fun setConversationMuted(conversationId: String, mutedUntil: Long)
+
+    suspend fun updateUserAvatarUrl(uid: String, newUrl: String, timestamp: Long)
 }

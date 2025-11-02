@@ -43,4 +43,7 @@ interface ConversationDao {
 
     @Query("DELETE FROM conversations")
     suspend fun clearAll()
+
+    @Query("UPDATE conversations SET mutedUntil = :mutedUntil WHERE id = :conversationId")
+    suspend fun updateMuteStatus(conversationId: String, mutedUntil: Long)
 }

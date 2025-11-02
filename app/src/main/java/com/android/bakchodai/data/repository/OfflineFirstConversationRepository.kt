@@ -27,6 +27,7 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
@@ -459,18 +460,42 @@ class OfflineFirstConversationRepository @Inject constructor(
         }
     }
 
+    override suspend fun setConversationMuted(conversationId: String, mutedUntil: Long) {
+        withContext(Dispatchers.IO) {
+            conversationDao.updateMuteStatus(conversationId, mutedUntil)
+            Log.d("Repo", "Set mute status for $conversationId until $mutedUntil")
+        }
+    }
+
+    override suspend fun updateUserAvatarUrl(uid: String, newUrl: String, timestamp: Long) {
+        try {
+            database.child("users").child(uid).child("avatarUrl").setValue(newUrl).await()
+            database.child("users").child(uid).child("avatarUploadTimestamp").setValue(timestamp).await()
+            Log.d("Repo", "User avatar updated in Firebase for: $uid")
+        } catch (e: Exception) {
+            Log.e("Repo", "Failed to update user avatar in Firebase", e)
+        }
+    }
+
     private fun User.toEntity() = UserEntity(
         uid, name, avatarUrl, personality,
         backgroundStory, interests, speakingStyle,
         isOnline, lastSeen,fcmToken,
-        bio,isPremium
+        bio,isPremium,
+        avatarUploadTimestamp
     )
     private fun UserEntity.toModel() = User(
         uid, name, avatarUrl, personality,
         backgroundStory, interests, speakingStyle,
         isOnline, lastSeen,fcmToken,
-        bio,isPremium
+        bio,isPremium,
+        avatarUploadTimestamp
     )
-    private fun Conversation.toEntity() = ConversationEntity(id, name, participants, messages, group, topic, typing)
-    private fun ConversationEntity.toModel() = Conversation(id, name, participants, messages, isGroup, topic, typing)
+    private fun Conversation.toEntity() = ConversationEntity(
+        id, name, participants, messages, group, topic, typing,
+        runBlocking { conversationDao.getConversationByIdSuspend(id)?.mutedUntil ?: 0L }
+    )
+    private fun ConversationEntity.toModel() = Conversation(
+        id, name, participants, messages, isGroup, topic, typing
+    )
 }

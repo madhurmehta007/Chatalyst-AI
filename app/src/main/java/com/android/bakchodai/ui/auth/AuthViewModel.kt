@@ -2,6 +2,7 @@
 
 package com.android.bakchodai.ui.auth
 
+import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -18,6 +19,7 @@ import com.google.firebase.auth.ktx.auth
 import com.google.firebase.auth.ktx.userProfileChangeRequest
 import com.google.firebase.ktx.Firebase
 import com.google.firebase.messaging.FirebaseMessaging
+import com.google.firebase.storage.FirebaseStorage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -50,7 +52,10 @@ enum class AuthState {
  * @param repository The repository for managing conversation and user data.
  */
 @HiltViewModel
-class AuthViewModel @Inject constructor(private val repository: ConversationRepository) : ViewModel() {
+class AuthViewModel @Inject constructor(
+    private val repository: ConversationRepository,
+    private val storage: FirebaseStorage
+) : ViewModel() {
 
     private val auth: FirebaseAuth = Firebase.auth
 
@@ -276,6 +281,42 @@ class AuthViewModel @Inject constructor(private val repository: ConversationRepo
                 repository.updateUserName(firebaseUser.uid, newName)
             } catch (e: Exception) {
                 _errorEvent.emit("Failed to update name. Please try again.")
+            }
+        }
+    }
+
+    fun updateUserAvatar(uri: Uri) {
+        val firebaseUser = auth.currentUser ?: return
+        viewModelScope.launch {
+            _isLoading.value = true
+            try {
+                val storageRef = storage.reference.child("avatars/${firebaseUser.uid}.jpg")
+                storageRef.putFile(uri).await()
+                val downloadUrl = storageRef.downloadUrl.await().toString()
+                val timestamp = System.currentTimeMillis()
+
+                repository.updateUserAvatarUrl(firebaseUser.uid, downloadUrl, timestamp)
+            } catch (e: Exception) {
+                Log.e("AuthViewModel", "Failed to upload avatar", e)
+                _errorEvent.emit("Failed to update avatar.")
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    fun updateUserAvatarFromUrl(url: String) {
+        val firebaseUser = auth.currentUser ?: return
+        viewModelScope.launch {
+            _isLoading.value = true
+            try {
+                val timestamp = System.currentTimeMillis()
+                repository.updateUserAvatarUrl(firebaseUser.uid, url, timestamp)
+            } catch (e: Exception) {
+                Log.e("AuthViewModel", "Failed to update avatar from URL", e)
+                _errorEvent.emit("Failed to update avatar.")
+            } finally {
+                _isLoading.value = false
             }
         }
     }

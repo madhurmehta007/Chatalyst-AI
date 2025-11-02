@@ -403,6 +403,21 @@ class FirebaseConversationRepository : ConversationRepository {
         }
     }
 
+    override suspend fun setConversationMuted(
+        conversationId: String,
+        mutedUntil: Long
+    ) {}
+
+    override suspend fun updateUserAvatarUrl(uid: String, newUrl: String, timestamp: Long) {
+        try {
+            database.child("users").child(uid).child("avatarUrl").setValue(newUrl).await()
+            database.child("users").child(uid).child("avatarUploadTimestamp").setValue(timestamp).await()
+            Log.d("Repo", "User avatar updated in Firebase for: $uid")
+        } catch (e: Exception) {
+            Log.e("Repo", "Failed to update user avatar in Firebase", e)
+        }
+    }
+
     override suspend fun clearAllLocalData() {
     }
 }

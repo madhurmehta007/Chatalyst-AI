@@ -77,6 +77,7 @@ import com.android.bakchodai.data.model.Message
 import com.android.bakchodai.data.model.User
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.ktx.Firebase
+import java.util.concurrent.TimeUnit
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -86,11 +87,12 @@ fun ChatScreen(
     isUploading: Boolean,
     isAiTyping: Boolean,
     onSendMessage: (String) -> Unit,
-    onSendMedia: (Uri) -> Unit,
+    onSendMedia: (List<Uri>) -> Unit,
     onEmojiReact: (String, String) -> Unit,
     onEditMessage: (String, String) -> Unit,
     onNavigateToEditGroup: () -> Unit,
     onDeleteMessages: (List<String>) -> Unit,
+    onMuteConversation: (Long) -> Unit,
     onClearChat: () -> Unit,
     onDeleteGroup: () -> Unit,
     onBack: () -> Unit,
@@ -122,6 +124,7 @@ fun ChatScreen(
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showDeleteGroupDialog by remember { mutableStateOf(false) }
     var showClearChatDialog by remember { mutableStateOf(false) }
+    var showMuteDialog by remember { mutableStateOf(false) }
     var isSearchActive by remember { mutableStateOf(false) }
     val lifecycleOwner = LocalLifecycleOwner.current
 
@@ -155,10 +158,10 @@ fun ChatScreen(
     }
 
     val photoPickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickVisualMedia(),
-        onResult = { uri ->
-            if (uri != null) {
-                onSendMedia(uri)
+        contract = ActivityResultContracts.PickMultipleVisualMedia(),
+        onResult = { uris ->
+            if (uris.isNotEmpty()) {
+                onSendMedia(uris)
             }
         }
     )
@@ -195,6 +198,7 @@ fun ChatScreen(
                         onNavigateToEditGroup = onNavigateToEditGroup,
                         onShowDeleteGroupDialog = { showDeleteGroupDialog = true },
                         onShowClearChatDialog = { showClearChatDialog = true },
+                        onShowMuteDialog = { showMuteDialog = true },
                         onSearchClick = { isSearchActive = true }
                     )
                 }
@@ -287,7 +291,7 @@ fun ChatScreen(
                     onSendMessage = onSendMessage,
                     onSendMedia = {
                         photoPickerLauncher.launch(
-                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)
                         )
                     },
                     replyToMessage = replyToMessage,
@@ -372,6 +376,16 @@ fun ChatScreen(
             }
         )
     }
+
+    if (showMuteDialog) {
+        MuteDialog(
+            onDismiss = { showMuteDialog = false },
+            onMute = { duration ->
+                onMuteConversation(duration)
+                showMuteDialog = false
+            }
+        )
+    }
 }
 
 
@@ -386,6 +400,7 @@ private fun NormalTopBar(
     onBack: () -> Unit,
     onShowDeleteGroupDialog: () -> Unit,
     onShowClearChatDialog: () -> Unit,
+    onShowMuteDialog: () -> Unit,
     onSearchClick: () -> Unit
 ) {
     val context = LocalContext.current
@@ -475,6 +490,13 @@ private fun NormalTopBar(
                     onDismissRequest = { isMenuExpanded = false }
                 ) {
                     DropdownMenuItem(
+                        text = { Text("Mute Notifications") },
+                        onClick = {
+                            onShowMuteDialog()
+                            isMenuExpanded = false
+                        }
+                    )
+                    DropdownMenuItem(
                         text = { Text("Edit Group") },
                         onClick = {
                             onNavigateToEditGroup()
@@ -501,6 +523,13 @@ private fun NormalTopBar(
                     expanded = isMenuExpanded,
                     onDismissRequest = { isMenuExpanded = false }
                 ) {
+                    DropdownMenuItem(
+                        text = { Text("Mute Notifications") },
+                        onClick = {
+                            onShowMuteDialog()
+                            isMenuExpanded = false
+                        }
+                    )
                     DropdownMenuItem(
                         text = { Text("Clear Chat", color = MaterialTheme.colorScheme.error) },
                         onClick = {
@@ -536,6 +565,40 @@ private fun NormalTopBar(
                         }
                     )
                 }
+            }
+        }
+    )
+}
+
+@Composable
+private fun MuteDialog(
+    onDismiss: () -> Unit,
+    onMute: (Long) -> Unit
+) {
+    val options = mapOf(
+        "8 Hours" to TimeUnit.HOURS.toMillis(8),
+        "1 Week" to TimeUnit.DAYS.toMillis(7),
+        "Always" to -1L
+    )
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Mute notifications") },
+        text = {
+            Column {
+                options.forEach { (label, duration) ->
+                    TextButton(
+                        onClick = { onMute(duration) },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(label, modifier = Modifier.fillMaxWidth())
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
             }
         }
     )
@@ -627,6 +690,6 @@ private fun NewMessagesDivider() {
                 )
                 .padding(horizontal = 6.dp, vertical = 2.dp)
         )
-        Divider(modifier = Modifier.weight(1f))
+        Spacer(modifier = Modifier.weight(1f))
     }
 }

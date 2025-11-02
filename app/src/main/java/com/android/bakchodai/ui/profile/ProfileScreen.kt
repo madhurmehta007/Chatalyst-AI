@@ -1,11 +1,17 @@
 package com.android.bakchodai.ui.profile
 
+import android.net.Uri
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -14,25 +20,32 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Brightness6
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ExitToApp
+import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults // Import
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -58,15 +71,19 @@ import kotlinx.coroutines.launch
 @Composable
 fun ProfileScreen(
     user: User?,
-    onSaveClick: (String) -> Unit,
-    onLogoutClick: () -> Unit,
-    modifier: Modifier = Modifier,
+    onSaveName: (String) -> Unit, // Renamed
     onSaveBio: (String) -> Unit,
-    onUpgradeClick: () -> Unit
+    onLogoutClick: () -> Unit,
+    onUpgradeClick: () -> Unit,
+    onUpdateAvatar: (Uri) -> Unit, // Added
+    onUpdateAvatarUrl: (String) -> Unit, // Added
+    modifier: Modifier = Modifier
 ) {
     var name by remember(user) { mutableStateOf(user?.name ?: "") }
     var bio by remember(user) { mutableStateOf(user?.bio ?: "") }
-    val avatarUrl by remember(user) {
+
+    // *** MODIFICATION: Use the resolveAvatarUrl with timestamp ***
+    val avatarUrl by remember(user?.avatarUrl, user?.avatarUploadTimestamp) {
         mutableStateOf(user?.resolveAvatarUrl() ?: "https://ui-avatars.com/api/?name=?")
     }
 
@@ -76,9 +93,23 @@ fun ProfileScreen(
 
     var showEditNameDialog by remember { mutableStateOf(false) }
     var showEditBioDialog by remember { mutableStateOf(false) }
-
-    // *** MODIFICATION: State for logout dialog ***
     var showLogoutDialog by remember { mutableStateOf(false) }
+
+    // *** MODIFICATION: State for Avatar Bottom Sheet ***
+    var showAvatarOptions by remember { mutableStateOf(false) }
+    val bottomSheetState = rememberModalBottomSheetState()
+
+    val photoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia(),
+        onResult = { uri ->
+            if (uri != null) {
+                onUpdateAvatar(uri)
+                scope.launch { bottomSheetState.hide() }.invokeOnCompletion {
+                    if (!bottomSheetState.isVisible) showAvatarOptions = false
+                }
+            }
+        }
+    )
 
     Column(
         modifier = modifier
@@ -89,21 +120,35 @@ fun ProfileScreen(
     ) {
         Spacer(modifier = Modifier.height(32.dp))
 
-        AsyncImage(
-            model = avatarUrl,
-            contentDescription = "Profile Picture",
-            modifier = Modifier
-                .size(120.dp)
-                .clip(CircleShape)
-                .border(2.dp, MaterialTheme.colorScheme.primary, CircleShape)
-                .background(MaterialTheme.colorScheme.surfaceVariant),
-            contentScale = ContentScale.Crop,
-            placeholder = rememberVectorPainter(Icons.Filled.Person),
-            error = rememberVectorPainter(Icons.Filled.Person)
-        )
+        Box(contentAlignment = Alignment.BottomEnd) {
+            AsyncImage(
+                model = avatarUrl,
+                contentDescription = "Profile Picture",
+                modifier = Modifier
+                    .size(120.dp)
+                    .clip(CircleShape)
+                    .border(2.dp, MaterialTheme.colorScheme.primary, CircleShape)
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .clickable { showAvatarOptions = true }, // *** MODIFICATION: Make clickable ***
+                contentScale = ContentScale.Crop,
+                placeholder = rememberVectorPainter(Icons.Filled.Person),
+                error = rememberVectorPainter(Icons.Filled.Person)
+            )
+            Icon(
+                imageVector = Icons.Default.Edit,
+                contentDescription = "Edit Avatar",
+                modifier = Modifier
+                    .size(30.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.secondary)
+                    .padding(6.dp),
+                tint = MaterialTheme.colorScheme.onSecondary
+            )
+        }
 
         Spacer(modifier = Modifier.height(32.dp))
 
+        // ... (ProfileListItems remain the same) ...
         ProfileListItem(
             icon = Icons.Default.Person,
             title = "Name",
@@ -163,7 +208,7 @@ fun ProfileScreen(
                 icon = Icons.Default.WorkspacePremium,
                 title = "Upgrade to Premium",
                 subtitle = "Create unlimited custom AI characters!",
-                onClick = onUpgradeClick, // *** MODIFICATION: This now navigates to PremiumScreen ***
+                onClick = onUpgradeClick,
                 titleColor = MaterialTheme.colorScheme.secondary
             )
         }
@@ -174,11 +219,12 @@ fun ProfileScreen(
             icon = Icons.Default.ExitToApp,
             title = "Logout",
             subtitle = "",
-            onClick = { showLogoutDialog = true }, // *** MODIFICATION: Show dialog ***
+            onClick = { showLogoutDialog = true },
             titleColor = MaterialTheme.colorScheme.error
         )
 
         Spacer(modifier = Modifier.height(32.dp))
+
     }
 
     if (showEditNameDialog) {
@@ -195,7 +241,7 @@ fun ProfileScreen(
             confirmButton = {
                 Button(
                     onClick = {
-                        onSaveClick(name)
+                        onSaveName(name) // Use renamed prop
                         Toast.makeText(context, "Profile Saved!", Toast.LENGTH_SHORT).show()
                         showEditNameDialog = false
                     }
@@ -209,7 +255,7 @@ fun ProfileScreen(
             }
         )
     }
-
+    // ... (EditBioDialog and LogoutDialog remain the same) ...
     if (showEditBioDialog) {
         AlertDialog(
             onDismissRequest = { showEditBioDialog = false },
@@ -241,7 +287,6 @@ fun ProfileScreen(
         )
     }
 
-    // *** MODIFICATION: Add logout confirmation dialog ***
     if (showLogoutDialog) {
         AlertDialog(
             onDismissRequest = { showLogoutDialog = false },
@@ -261,8 +306,26 @@ fun ProfileScreen(
             }
         )
     }
-}
 
+    // *** MODIFICATION: Add Avatar Bottom Sheet ***
+    if (showAvatarOptions) {
+        ProfilePictureOptionsSheet(
+            onDismiss = { showAvatarOptions = false },
+            onPickFromGallery = {
+                photoPickerLauncher.launch(
+                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                )
+            },
+            onSelectSuggestion = { url ->
+                onUpdateAvatarUrl(url)
+                scope.launch { bottomSheetState.hide() }.invokeOnCompletion {
+                    if (!bottomSheetState.isVisible) showAvatarOptions = false
+                }
+            }
+        )
+    }
+}
+// ... (ProfileListItem composable remains unchanged) ...
 @Composable
 private fun ProfileListItem(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
@@ -306,6 +369,82 @@ private fun ProfileListItem(
         if (trailingContent != null) {
             Spacer(modifier = Modifier.width(16.dp))
             trailingContent()
+        }
+    }
+}
+
+
+// *** MODIFICATION: New Bottom Sheet Composable ***
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ProfilePictureOptionsSheet(
+    onDismiss: () -> Unit,
+    onPickFromGallery: () -> Unit,
+    onSelectSuggestion: (String) -> Unit
+) {
+    // List of "cool" avatar suggestions. These are seeds for Dicebear, an avatar API.
+    val suggestions = listOf(
+        "adventurer" to "https://api.dicebear.com/7.x/adventurer/avif?seed=Felix",
+        "bottts" to "https://api.dicebear.com/7.x/bottts/avif?seed=Gizmo",
+        "pixel-art" to "https://api.dicebear.com/7.x/pixel-art/avif?seed=Mario",
+        "fun-emoji" to "https://api.dicebear.com/7.x/fun-emoji/avif?seed=Joy",
+        "lorelei" to "https://api.dicebear.com/7.x/lorelei/avif?seed=Luna",
+        "miniavs" to "https://api.dicebear.com/7.x/miniavs/avif?seed=Alex"
+    )
+
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 32.dp)
+        ) {
+            // Title
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("Update Profile Picture", style = MaterialTheme.typography.titleLarge)
+                IconButton(onClick = onDismiss) {
+                    Icon(Icons.Default.Close, contentDescription = "Close")
+                }
+            }
+            Divider()
+
+            // Option 1: Pick from Gallery
+            ProfileListItem(
+                icon = Icons.Default.Image,
+                title = "Choose from Gallery",
+                subtitle = "Upload your own photo",
+                onClick = onPickFromGallery
+            )
+            Divider(modifier = Modifier.padding(horizontal = 16.dp))
+
+            // Option 2: Suggestions
+            Text(
+                "Or pick a style",
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(16.dp)
+            )
+            LazyRow(
+                contentPadding = PaddingValues(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                items(suggestions) { (name, url) ->
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        AsyncImage(
+                            model = url,
+                            contentDescription = name,
+                            modifier = Modifier
+                                .size(80.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.surfaceVariant)
+                                .clickable { onSelectSuggestion(url) }
+                        )
+                        Text(name, style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+            }
         }
     }
 }

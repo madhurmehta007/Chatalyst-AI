@@ -6,14 +6,23 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import android.util.Log // Import
 import androidx.core.app.NotificationCompat
 import com.android.bakchodai.MainActivity
 import com.android.bakchodai.R
+import com.android.bakchodai.data.local.ConversationDao // Import
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
+import dagger.hilt.android.AndroidEntryPoint // Import
+import kotlinx.coroutines.Dispatchers // Import
+import kotlinx.coroutines.runBlocking // Import
+import javax.inject.Inject // Import
 import kotlin.random.Random
 
+@AndroidEntryPoint
 class MyFirebaseMessagingService : FirebaseMessagingService() {
+
+    @Inject lateinit var conversationDao: ConversationDao
 
     override fun onMessageReceived(remoteMessage: RemoteMessage) {
         super.onMessageReceived(remoteMessage)
@@ -22,6 +31,26 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         val title = data["title"] ?: "New Message"
         val body = data["body"] ?: "You have a new message"
         val conversationId = data["conversationId"]
+
+        if (conversationId != null) {
+            try {
+                val conversation = runBlocking(Dispatchers.IO) {
+                    conversationDao.getConversationByIdSuspend(conversationId)
+                }
+
+                if (conversation != null) {
+                    val isMutedForever = conversation.mutedUntil == -1L
+                    val isMutedTemporarily = conversation.mutedUntil > System.currentTimeMillis()
+
+                    if (isMutedForever || isMutedTemporarily) {
+                        Log.d("FCMService", "Conversation $conversationId is muted. Suppressing notification.")
+                        return // Don't show notification
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("FCMService", "Error checking mute status in Room", e)
+            }
+        }
 
         val intent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
@@ -33,7 +62,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         )
 
         val channelId = "bakchodai_messages_channel"
-        
+
         val notificationBuilder = NotificationCompat.Builder(this, channelId)
             .setSmallIcon(R.drawable.app_icon)
             .setContentTitle(title)
@@ -58,5 +87,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
 
     override fun onNewToken(token: String) {
         super.onNewToken(token)
+        // You should have logic here to send this token to your server/Firebase
+        // associated with the logged-in user.
     }
 }

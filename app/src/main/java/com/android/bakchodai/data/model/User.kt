@@ -16,10 +16,11 @@ data class User(
     val lastSeen: Long = 0L,
     val fcmToken: String = "",
     val bio: String = "",
-    val isPremium: Boolean = false
-){
+    val isPremium: Boolean = false,
+    val avatarUploadTimestamp: Long = 0L
+) {
     fun resolveAvatarUrl(): String {
-        return if (!avatarUrl.isNullOrBlank()) {
+        val baseUrl = if (!avatarUrl.isNullOrBlank()) {
             avatarUrl
         } else {
             val encodedName = try {
@@ -29,5 +30,13 @@ data class User(
             }
             "https://api.dicebear.com/7.x/avataaars/avif?seed=${encodedName}"
         }
+
+        return if (avatarUploadTimestamp > 0) {
+            if (baseUrl.contains("?")) "$baseUrl&t=$avatarUploadTimestamp"
+            else "$baseUrl?t=$avatarUploadTimestamp"
+        } else {
+            baseUrl
+        }
     }
+
 }

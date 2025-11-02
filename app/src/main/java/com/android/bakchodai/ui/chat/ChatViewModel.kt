@@ -1,5 +1,6 @@
 package com.android.bakchodai.ui.chat
 
+import android.content.Context
 import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.util.Log
@@ -19,7 +20,9 @@ import com.google.firebase.database.ktx.database
 import com.google.firebase.ktx.Firebase
 import com.google.firebase.storage.FirebaseStorage
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -28,6 +31,7 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import java.io.File
@@ -40,7 +44,8 @@ class ChatViewModel @Inject constructor(
     private val aiService: AiService,
     private val storage: FirebaseStorage,
     private val audioRecorder: AudioRecorder,
-    private val audioPlayer: AudioPlayer
+    private val audioPlayer: AudioPlayer,
+    @ApplicationContext private val context: Context
 ) : ViewModel() {
 
     private val _conversation = MutableStateFlow<Conversation?>(null)
@@ -73,7 +78,6 @@ class ChatViewModel @Inject constructor(
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
 
-    // *** MODIFICATION: For "New Messages" divider ***
     private val _firstUnreadMessageId = MutableStateFlow<String?>(null)
     val firstUnreadMessageId: StateFlow<String?> = _firstUnreadMessageId.asStateFlow()
 
@@ -111,9 +115,19 @@ class ChatViewModel @Inject constructor(
         }
     }
 
+    fun muteConversation(conversationId: String, durationMillis: Long) {
+        viewModelScope.launch {
+            val mutedUntil = if (durationMillis == -1L) {
+                -1L // Flag for "Always"
+            } else {
+                System.currentTimeMillis() + durationMillis
+            }
+            repository.setConversationMuted(conversationId, mutedUntil)
+        }
+    }
+
     fun loadConversation(conversationId: String) {
         viewModelScope.launch {
-            // *** MODIFICATION: Set first unread ID *before* collecting ***
             val initialConvo = repository.getConversationFlow(conversationId).first() // Get initial state
             if (initialConvo != null) {
                 _firstUnreadMessageId.value = findFirstUnreadMessageId(initialConvo)
@@ -381,6 +395,61 @@ class ChatViewModel @Inject constructor(
                 _isUploading.value = false
             }
         }
+    }
+
+    fun sendMedia(conversationId: String, mediaUris: List<Uri>) {
+        val currentUser = Firebase.auth.currentUser ?: return
+        viewModelScope.launch {
+            _isUploading.value = true
+            val uploadJobs = mutableListOf<Job>()
+
+            for (uri in mediaUris) {
+                uploadJobs += launch(Dispatchers.IO) { // Launch each upload in parallel
+                    try {
+                        val mimeType = context.contentResolver.getType(uri)
+                        if (mimeType?.startsWith("image/") == true) {
+                            uploadImageMessage(conversationId, uri, currentUser.uid)
+                        } else if (mimeType?.startsWith("video/") == true) {
+                            uploadVideoMessage(conversationId, uri, currentUser.uid)
+                        }
+                    } catch (e: Exception) {
+                        Log.e("ChatViewModel", "Error uploading media file: $uri", e)
+                    }
+                }
+            }
+
+            uploadJobs.joinAll() // Wait for all uploads to complete
+            _isUploading.value = false
+        }
+    }
+
+    private suspend fun uploadImageMessage(conversationId: String, imageUri: Uri, senderId: String) {
+        val imageId = UUID.randomUUID().toString()
+        val storageRef = storage.reference.child("images/$conversationId/$imageId.jpg")
+
+        storageRef.putFile(imageUri).await()
+        val downloadUrl = storageRef.downloadUrl.await().toString()
+
+        val imageMessage = Message(
+            senderId = senderId,
+            content = downloadUrl,
+            timestamp = System.currentTimeMillis(),
+            type = MessageType.IMAGE
+        )
+        repository.addMessage(conversationId, imageMessage)
+    }
+
+    private suspend fun uploadVideoMessage(conversationId: String, videoUri: Uri, senderId: String) {
+        // TODO: Implement video uploading and thumbnail generation
+        // For now, just send a text message as a placeholder
+        Log.w("ChatViewModel", "Video sending not implemented. Sending placeholder text.")
+        val videoMessage = Message(
+            senderId = senderId,
+            content = "▶️ Video (Sending not yet supported)",
+            timestamp = System.currentTimeMillis(),
+            type = MessageType.TEXT // Placeholder type
+        )
+        repository.addMessage(conversationId, videoMessage)
     }
 
     fun playAudio(message: Message) {

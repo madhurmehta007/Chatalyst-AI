@@ -109,10 +109,12 @@ fun AppNavigation() {
                         ) { paddingValues ->
                             ProfileScreen(
                                 user = user,
-                                onSaveClick = { newName -> authViewModel.updateUserName(newName) },
+                                onSaveName = { newName -> authViewModel.updateUserName(newName) }, // Renamed
                                 onSaveBio = { newBio -> authViewModel.updateUserBio(newBio) },
                                 onLogoutClick = { authViewModel.logout() },
                                 onUpgradeClick = { navController.navigate("premium") },
+                                onUpdateAvatar = { uri -> authViewModel.updateUserAvatar(uri) },
+                                onUpdateAvatarUrl = { url -> authViewModel.updateUserAvatarFromUrl(url) },
                                 modifier = Modifier.padding(paddingValues)
                             )
                         }
@@ -226,8 +228,8 @@ fun AppNavigation() {
                                 onSendMessage = { message ->
                                     chatViewModel.sendMessage(conversationId, message)
                                 },
-                                onSendMedia = { uri ->
-                                    chatViewModel.sendImage(conversationId, uri)
+                                onSendMedia = { uris ->
+                                    chatViewModel.sendMedia(conversationId, uris)
                                 },
                                 onEmojiReact = { messageId, emoji ->
                                     chatViewModel.addEmojiReaction(conversationId, messageId, emoji)
@@ -236,12 +238,15 @@ fun AppNavigation() {
                                     chatViewModel.editMessage(conversationId, messageId, newText)
                                 },
 
-                                // *** MODIFICATION: Updated delete/clear functions ***
                                 onDeleteMessages = { messageIds ->
                                     chatViewModel.deleteMessages(conversationId, messageIds)
                                 },
                                 onClearChat = {
                                     chatViewModel.clearChat(conversationId)
+                                },
+
+                                onMuteConversation = { duration ->
+                                    chatViewModel.muteConversation(conversationId, duration)
                                 },
 
                                 onNavigateToEditGroup = {
@@ -261,7 +266,6 @@ fun AppNavigation() {
                                     chatViewModel.onSearchQueryChanged(query)
                                 },
 
-                                // *** MODIFICATION: Pass new state ***
                                 firstUnreadMessageId = firstUnreadMessageId,
 
                                 isRecording = isRecording,
