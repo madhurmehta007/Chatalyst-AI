@@ -45,14 +45,41 @@ class OfflineFirstConversationRepository @Inject constructor(
 
     private var userListener: ValueEventListener? = null
 
+    // *** MODIFICATION: Add properties to track listeners ***
+    private var currentSyncUserId: String? = null
+    private var userConversationsListener: ValueEventListener? = null
+    private val activeConversationListeners = mutableMapOf<String, ValueEventListener>()
+
     fun startSyncing() {
-        Log.d("Repo", "Starting Firebase sync...")
+        // *** MODIFICATION: Get and store current user ID ***
+        val userId = Firebase.auth.currentUser?.uid ?: return
+        currentSyncUserId = userId // Store for cleanup
+        Log.d("Repo", "Starting Firebase sync for user $userId")
+
         syncUsers()
+        syncUserConversations(userId) // *** MODIFICATION: Start syncing conversations ***
     }
 
     fun stopSyncing() {
         Log.d("Repo", "Stopping Firebase sync...")
+        // Stop user listener
         userListener?.let { database.child("users").removeEventListener(it) }
+        userListener = null
+
+        // *** MODIFICATION: Stop all conversation listeners ***
+        currentSyncUserId?.let { userId ->
+            userConversationsListener?.let {
+                database.child("user-conversations").child(userId).removeEventListener(it)
+            }
+        }
+        userConversationsListener = null
+
+        activeConversationListeners.forEach { (convoId, listener) ->
+            database.child("conversations").child(convoId).removeEventListener(listener)
+        }
+        activeConversationListeners.clear()
+        currentSyncUserId = null
+        Log.d("Repo", "All Firebase sync listeners stopped.")
     }
 
     private fun syncUsers() {
@@ -71,34 +98,81 @@ class OfflineFirstConversationRepository @Inject constructor(
         })
     }
 
+    // *** MODIFICATION: New function to sync all conversations in real-time ***
+    private fun syncUserConversations(userId: String) {
+        val userConversationsRef = database.child("user-conversations").child(userId)
+
+        // Remove old listener if it exists
+        userConversationsListener?.let { userConversationsRef.removeEventListener(it) }
+
+        userConversationsListener = object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                val remoteConvoIds = snapshot.children.mapNotNull { it.key }.toSet()
+                Log.d("Repo", "User conversation list updated. Found ${remoteConvoIds.size} convos.")
+
+                // 1. Remove listeners for conversations we're no longer part of
+                val listenersToRemove = activeConversationListeners.keys.filterNot { it in remoteConvoIds }
+                listenersToRemove.forEach { convoId ->
+                    val listener = activeConversationListeners.remove(convoId)
+                    listener?.let { database.child("conversations").child(convoId).removeEventListener(it) }
+                    Log.d("Repo", "Removed listener for deleted/left convo: $convoId")
+                }
+
+                // 2. Add listeners for new conversations
+                val listenersToAdd = remoteConvoIds.filterNot { it in activeConversationListeners.keys }
+                listenersToAdd.forEach { convoId ->
+                    Log.d("Repo", "Adding new listener for convo: $convoId")
+                    val convoRef = database.child("conversations").child(convoId)
+
+                    val listener = object : ValueEventListener {
+                        override fun onDataChange(convoSnapshot: DataSnapshot) {
+                            val conversation = convoSnapshot.getValue(Conversation::class.java)
+                            if (conversation != null) {
+                                scope.launch {
+                                    // *** THIS IS THE KEY ***
+                                    // Write the entire updated conversation to Room
+                                    conversationDao.insertAll(listOf(conversation.toEntity()))
+                                    Log.v("Repo", "Updated convo $convoId in Room (e.g., new message)")
+                                }
+                            } else {
+                                // Conversation was deleted from Firebase, so delete from Room
+                                scope.launch {
+                                    conversationDao.deleteConversationById(convoId)
+                                    Log.d("Repo", "Deleted convo $convoId from Room")
+                                }
+                            }
+                        }
+                        override fun onCancelled(error: DatabaseError) {
+                            Log.e("Repo", "Listener for convo $convoId cancelled", error.toException())
+                        }
+                    }
+                    convoRef.addValueEventListener(listener)
+                    activeConversationListeners[convoId] = listener // Track it
+                }
+            }
+            override fun onCancelled(error: DatabaseError) {
+                Log.e("Repo", "User conversations listener cancelled", error.toException())
+            }
+        }
+        userConversationsRef.addValueEventListener(userConversationsListener!!)
+    }
+
 
     override fun getConversationsFlow(): Flow<List<Conversation>> {
         return conversationDao.getAllConversations()
             .map { entities -> entities.map { it.toModel() } }
-            .onStart {
-                fetchAndUpdateUserConversations()
-            }
+            // *** MODIFICATION: REMOVED onStart block ***
+            // The persistent listener from startSyncing() now handles all
+            // initial fetching and real-time updates.
             .flowOn(Dispatchers.IO)
     }
 
+    // *** MODIFICATION: This function is no longer needed as syncUserConversations handles it ***
+    /*
     private suspend fun fetchAndUpdateUserConversations() {
-        val userId = Firebase.auth.currentUser?.uid ?: return
-        try {
-            Log.d("Repo", "Fetching initial conversation list for user $userId")
-            val userConvoIdsSnapshot = database.child("user-conversations").child(userId).get().await()
-            val convoIds = userConvoIdsSnapshot.children.mapNotNull { it.key }
-            Log.d("Repo", "Found ${convoIds.size} conversation IDs")
-
-            val remoteConversations = convoIds.mapNotNull { id ->
-                database.child("conversations").child(id).get().await().getValue(Conversation::class.java)
-            }
-            val conversationEntities = remoteConversations.map { it.toEntity() }
-            conversationDao.insertAll(conversationEntities)
-            Log.d("Repo", "Inserted initial ${conversationEntities.size} conversations into Room.")
-        } catch (e: Exception) {
-            Log.e("Repo", "Error fetching initial conversation list", e)
-        }
+        ...
     }
+    */
 
 
     override fun getUsersFlow(): Flow<List<User>> {
@@ -109,6 +183,9 @@ class OfflineFirstConversationRepository @Inject constructor(
 
     @OptIn(ExperimentalCoroutinesApi::class)
     override fun getConversationFlow(id: String): Flow<Conversation?> {
+        // This flow is for the single chat screen.
+        // We still keep its own listener for immediate updates,
+        // but the syncUserConversations listener provides the backup.
         val firebaseFlow = callbackFlow<Conversation?> {
             val conversationRef = database.child("conversations").child(id)
             val listener = conversationRef.addValueEventListener(object : ValueEventListener {
@@ -116,6 +193,7 @@ class OfflineFirstConversationRepository @Inject constructor(
                     val conversation = snapshot.getValue(Conversation::class.java)
                     Log.d("Repo", "Firebase listener update for conv $id (Exists: ${conversation != null})")
                     conversation?.let {
+                        // This write also benefits the main list screen
                         scope.launch { conversationDao.insertAll(listOf(it.toEntity())) }
                     }
                     trySend(conversation)
@@ -148,6 +226,10 @@ class OfflineFirstConversationRepository @Inject constructor(
             .flowOn(Dispatchers.IO)
     }
 
+    // ... (rest of the file remains unchanged) ...
+    // ... addMessage, createGroup, addUser, etc. are all fine ...
+    // ... The toEntity/toModel functions also remain unchanged ...
+
     override suspend fun getConversations(): List<Conversation> = withContext(Dispatchers.IO) {
         conversationDao.getAllConversationsSuspend().map { it.toModel() }
     }
@@ -167,6 +249,9 @@ class OfflineFirstConversationRepository @Inject constructor(
                 .setValue(message.copy(id = messageId))
                 .await()
             Log.d("Repo", "Message added to Firebase: ${message.content}")
+            // NOTE: We no longer need to write to Room here.
+            // The active listener for this conversation will see the change
+            // and update Room automatically.
         } catch (e: Exception) {
             Log.e("Repo", "Failed to add message to Firebase", e)
         }
@@ -198,6 +283,7 @@ class OfflineFirstConversationRepository @Inject constructor(
 
         database.updateChildren(childUpdates).await()
         Log.d("Repo", "Group created in Firebase: $conversationId")
+        // The listener on "user-conversations" will fire, adding this new group.
         return conversationId
     }
 
@@ -205,6 +291,7 @@ class OfflineFirstConversationRepository @Inject constructor(
         try {
             database.child("users").child(user.uid).setValue(user).await()
             Log.d("Repo", "User added/updated in Firebase: ${user.uid}")
+            // The "users" listener will pick this up.
         } catch (e: Exception) {
             Log.e("Repo", "Failed to add user to Firebase", e)
         }
@@ -227,6 +314,7 @@ class OfflineFirstConversationRepository @Inject constructor(
         try {
             database.child("conversations/$conversationId/messages/$messageId").updateChildren(updates).await()
             Log.d("Repo", "Message updated in Firebase: $messageId")
+            // Listener will pick this up
         } catch (e: Exception) {
             Log.e("Repo", "Failed to update message in Firebase", e)
         }
@@ -236,6 +324,7 @@ class OfflineFirstConversationRepository @Inject constructor(
         try {
             database.child("conversations/$conversationId/messages/$messageId").removeValue().await()
             Log.d("Repo", "Message deleted in Firebase: $messageId")
+            // Listener will pick this up
         } catch (e: Exception) {
             Log.e("Repo", "Failed to delete message in Firebase", e)
         }
@@ -255,6 +344,7 @@ class OfflineFirstConversationRepository @Inject constructor(
                     .await()
                 Log.d("Repo", "User link deleted in Firebase for group $conversationId, user $currentUserId")
                 firebaseUserLinkSuccess = true
+                // The "user-conversations" listener will fire, removing this group.
             } catch (e: Exception) {
                 Log.e("Repo", "Failed to delete user link for group $conversationId in Firebase", e)
                 if (e is com.google.firebase.database.DatabaseException) {
@@ -272,6 +362,7 @@ class OfflineFirstConversationRepository @Inject constructor(
                 .await()
             Log.d("Repo", "Main conversation node deleted in Firebase: $conversationId")
             firebaseMainNodeSuccess = true
+            // The conversation listener will fire and delete from Room.
         } catch (e: Exception) {
             Log.e("Repo", "Failed to delete main conversation node $conversationId in Firebase", e)
             if (e is com.google.firebase.database.DatabaseException) {
@@ -301,6 +392,7 @@ class OfflineFirstConversationRepository @Inject constructor(
         try {
             database.child("conversations/$conversationId").updateChildren(updates).await()
             Log.d("Repo", "Group details updated in Firebase: $conversationId")
+            // Listener will pick this up
         } catch (e: Exception) {
             Log.e("Repo", "Failed to update group details in Firebase", e)
             throw e
@@ -327,6 +419,7 @@ class OfflineFirstConversationRepository @Inject constructor(
             } else {
                 typingRef.removeValue().await()
             }
+            // Listener will pick this up
         } catch (e: Exception) {
             Log.e("Repo", "Failed to set typing indicator in Firebase", e)
         }
@@ -343,6 +436,7 @@ class OfflineFirstConversationRepository @Inject constructor(
         try {
             database.child("users").child(uid).updateChildren(presenceUpdates).await()
             Log.d("Repo", "User presence updated for $uid: isOnline=$isOnline")
+            // "users" listener will pick this up
         } catch (e: Exception) {
             Log.e("Repo", "Failed to update user presence in Firebase", e)
         }
@@ -376,6 +470,7 @@ class OfflineFirstConversationRepository @Inject constructor(
         try {
             database.updateChildren(updates).await()
             Log.d("Repo", "Marked ${messageIds.size} messages as read by $userId")
+            // Listener will pick this up
         } catch (e: Exception) {
             Log.e("Repo", "Failed to mark messages as read", e)
         }
