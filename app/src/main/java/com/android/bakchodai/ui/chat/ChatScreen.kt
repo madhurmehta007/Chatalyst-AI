@@ -15,12 +15,15 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
@@ -35,13 +38,13 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Divider
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -378,7 +381,9 @@ fun ChatScreen(
     }
 
     if (showMuteDialog) {
+        val isMuted = conversation.mutedUntil == -1L || conversation.mutedUntil > System.currentTimeMillis()
         MuteDialog(
+            isMuted = isMuted,
             onDismiss = { showMuteDialog = false },
             onMute = { duration ->
                 onMuteConversation(duration)
@@ -490,7 +495,10 @@ private fun NormalTopBar(
                     onDismissRequest = { isMenuExpanded = false }
                 ) {
                     DropdownMenuItem(
-                        text = { Text("Mute Notifications") },
+                        text = {
+                            val isMuted = conversation.mutedUntil == -1L || conversation.mutedUntil > System.currentTimeMillis()
+                            Text(if (isMuted) "Unmute Notifications" else "Mute Notifications")
+                        },
                         onClick = {
                             onShowMuteDialog()
                             isMenuExpanded = false
@@ -572,9 +580,11 @@ private fun NormalTopBar(
 
 @Composable
 private fun MuteDialog(
+    isMuted: Boolean,
     onDismiss: () -> Unit,
     onMute: (Long) -> Unit
 ) {
+    var selectedDuration by remember { mutableStateOf(TimeUnit.HOURS.toMillis(8)) }
     val options = mapOf(
         "8 Hours" to TimeUnit.HOURS.toMillis(8),
         "1 Week" to TimeUnit.DAYS.toMillis(7),
@@ -583,22 +593,52 @@ private fun MuteDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Mute notifications") },
+        title = { Text(if (isMuted) "Unmute notifications" else "Mute notifications") },
         text = {
-            Column {
-                options.forEach { (label, duration) ->
-                    TextButton(
-                        onClick = { onMute(duration) },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(label, modifier = Modifier.fillMaxWidth())
+            if (isMuted) {
+                Text("This chat is muted. Do you want to unmute?")
+            } else {
+                // WhatsApp-style Radio button list
+                Column(Modifier.selectableGroup()) {
+                    options.forEach { (label, duration) ->
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .height(48.dp)
+                                .selectable(
+                                    selected = (duration == selectedDuration),
+                                    onClick = { selectedDuration = duration }
+                                ),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = (duration == selectedDuration),
+                                onClick = { selectedDuration = duration }
+                            )
+                            Text(
+                                text = label,
+                                style = MaterialTheme.typography.bodyLarge,
+                                modifier = Modifier.padding(start = 16.dp)
+                            )
+                        }
                     }
                 }
             }
         },
-        confirmButton = {
+        dismissButton = {
             TextButton(onClick = onDismiss) {
                 Text("Cancel")
+            }
+        },
+        confirmButton = {
+            if (isMuted) {
+                TextButton(onClick = { onMute(0L) }) { // 0L to unmute
+                    Text("Unmute")
+                }
+            } else {
+                TextButton(onClick = { onMute(selectedDuration) }) {
+                    Text("OK")
+                }
             }
         }
     )

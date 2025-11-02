@@ -212,14 +212,42 @@ class OfflineFirstConversationRepository @Inject constructor(
     }
 
     override suspend fun addMessage(conversationId: String, message: Message) {
-        val messageId = database.child("conversations/$conversationId/messages").push().key ?: return
-        try {
-            database.child("conversations/$conversationId/messages/$messageId")
-                .setValue(message.copy(id = messageId))
-                .await()
-            Log.d("Repo", "Message added to Firebase: ${message.content}")
-        } catch (e: Exception) {
-            Log.e("Repo", "Failed to add message to Firebase", e)
+        scope.launch {
+            try {
+                val conversation = conversationDao.getConversationByIdSuspend(conversationId)
+                if (conversation != null) {
+                    val updatedMessages = conversation.messages.toMutableMap()
+                    updatedMessages[message.id] = message
+
+                    conversationDao.insertAll(listOf(
+                        conversation.copy(messages = updatedMessages)
+                    ))
+                    Log.d("Repo", "Message added to Room locally (pending): ${message.id}")
+                }
+            } catch (e: Exception) {
+                Log.e("Repo", "Failed to add pending message to Room", e)
+            }
+
+            val firebaseMessage = message.copy(id = "", isSent = true)
+
+            try {
+                val newMessageRef = database.child("conversations/$conversationId/messages").push()
+                val messageId = newMessageRef.key!!
+                newMessageRef.setValue(firebaseMessage.copy(id = messageId)).await()
+                Log.d("Repo", "Message sent to Firebase: ${message.content}")
+
+                val conversation = conversationDao.getConversationByIdSuspend(conversationId)
+                if (conversation != null) {
+                    val updatedMessages = conversation.messages.toMutableMap()
+                    updatedMessages.remove(message.id)
+                    conversationDao.insertAll(listOf(
+                        conversation.copy(messages = updatedMessages)
+                    ))
+                }
+
+            } catch (e: Exception) {
+                Log.e("Repo", "Failed to add message to Firebase, it will remain pending", e)
+            }
         }
     }
 

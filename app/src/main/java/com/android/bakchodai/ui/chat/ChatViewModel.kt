@@ -162,13 +162,14 @@ class ChatViewModel @Inject constructor(
         val replyingTo = _replyToMessage.value
 
         val userMessage = Message(
+            id = UUID.randomUUID().toString(),
             senderId = currentUser.uid,
             content = text,
             timestamp = System.currentTimeMillis(),
             replyToMessageId = replyingTo?.id,
-            // *** MODIFICATION: Use preview helper ***
             replyPreview = replyingTo?.let { getMessagePreview(it) },
-            replySenderName = users.value.find { it.uid == replyingTo?.senderId }?.name
+            replySenderName = users.value.find { it.uid == replyingTo?.senderId }?.name,
+            isSent = false
         )
 
         viewModelScope.launch {
@@ -404,7 +405,7 @@ class ChatViewModel @Inject constructor(
             val uploadJobs = mutableListOf<Job>()
 
             for (uri in mediaUris) {
-                uploadJobs += launch(Dispatchers.IO) { // Launch each upload in parallel
+                uploadJobs += launch(Dispatchers.IO) {
                     try {
                         val mimeType = context.contentResolver.getType(uri)
                         if (mimeType?.startsWith("image/") == true) {

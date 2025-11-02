@@ -15,5 +15,6 @@ data class Message(
     val replyToMessageId: String? = null,
     val replyPreview: String? = null,
     val replySenderName: String? = null,
-    val audioDurationMs: Long = 0L
+    val audioDurationMs: Long = 0L,
+    val isSent: Boolean = true
 )

@@ -18,11 +18,13 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
-class MainViewModel @Inject constructor(private val repository: ConversationRepository) : ViewModel() {
+class MainViewModel @Inject constructor(private val repository: ConversationRepository) :
+    ViewModel() {
 
     private val _conversations = MutableStateFlow<List<Conversation>>(emptyList())
     val conversations: StateFlow<List<Conversation>> = _conversations
@@ -56,10 +58,15 @@ class MainViewModel @Inject constructor(private val repository: ConversationRepo
                 } else {
                     repository.getConversationsFlow()
                 }
-            }.collectLatest { convos ->
-                _conversations.value = convos
-                _isLoading.value = false
+            }.map { convos ->
+                convos.sortedByDescending {
+                    it.messages.values.maxByOrNull { msg -> msg.timestamp }?.timestamp ?: 0L
+                }
             }
+                .collectLatest { sortedConvos ->
+                    _conversations.value = sortedConvos
+                    _isLoading.value = false
+                }
         }
 
         viewModelScope.launch {

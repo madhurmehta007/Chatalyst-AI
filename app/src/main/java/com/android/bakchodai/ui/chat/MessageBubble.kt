@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Audiotrack
 import androidx.compose.material.icons.filled.BrokenImage
 import androidx.compose.material.icons.filled.Done
@@ -147,7 +148,8 @@ fun MessageBubble(
                             if (horizontalChange > 0) {
                                 change.consume()
                                 totalDrag += horizontalChange
-                                swipeOffset = (totalDrag * dragResistance).coerceIn(0f, swipeThreshold + 100f)
+                                swipeOffset =
+                                    (totalDrag * dragResistance).coerceIn(0f, swipeThreshold + 100f)
                             } else {
                                 change.consume()
                             }
@@ -297,7 +299,7 @@ fun MessageBubble(
                                 placeholder = rememberVectorPainter(Icons.Filled.Image),
                                 error = rememberVectorPainter(Icons.Default.BrokenImage)
                             )
-                        }else if (message.type == MessageType.AUDIO) {
+                        } else if (message.type == MessageType.AUDIO) {
                             AudioMessagePlayer(
                                 isPlaying = isPlaying,
                                 progress = playbackProgress,
@@ -305,8 +307,7 @@ fun MessageBubble(
                                 onPlayClick = onPlayAudio,
                                 onSeek = onSeekAudio
                             )
-                        }
-                        else {
+                        } else {
                             Text(text = message.content, color = textColor)
                         }
 
@@ -336,18 +337,22 @@ fun MessageBubble(
                             )
 
                             if (isFromMe) {
-                                val otherParticipants = conversation.participants.keys
-                                    .filter { it != currentUserId }
+                                val statusIcon = when {
+                                    !message.isSent -> Icons.Default.AccessTime
+                                    else -> {
+                                        val otherParticipants = conversation.participants.keys
+                                            .filter { it != currentUserId }
+                                        val isReadByAll = otherParticipants.isNotEmpty() &&
+                                                message.readBy.keys.containsAll(otherParticipants)
+                                        if (isReadByAll) Icons.Default.DoneAll else Icons.Default.Done
+                                    }
+                                }
 
-                                val isReadByAll = otherParticipants.isNotEmpty() &&
-                                        message.readBy.keys.containsAll(otherParticipants)
-
-                                val statusIcon =
-                                    if (isReadByAll) Icons.Default.DoneAll else Icons.Default.Done
-                                val iconTint = if (isReadByAll)
-                                    MaterialTheme.colorScheme.primary
-                                else
-                                    textColor.copy(alpha = 0.7f)
+                                val iconTint = when {
+                                    !message.isSent -> textColor.copy(alpha = 0.7f)
+                                    statusIcon == Icons.Default.DoneAll -> MaterialTheme.colorScheme.primary
+                                    else -> textColor.copy(alpha = 0.7f)
+                                }
 
                                 Icon(
                                     imageVector = statusIcon,
