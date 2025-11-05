@@ -10,11 +10,16 @@ import com.google.ai.client.generativeai.type.RequestOptions
 import com.google.ai.client.generativeai.type.content
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.json.JSONObject
+import java.util.regex.Pattern
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.text.get
 
 @Singleton
 class AiService @Inject constructor() {
+
+    private val jsonPattern: Pattern = Pattern.compile("```json\\s*([\\s\\S]*?)\\s*```")
 
     private fun cleanResponse(text: String?): String {
         return text?.replace("**", "")
@@ -22,7 +27,70 @@ class AiService @Inject constructor() {
             ?: ""
     }
 
+    suspend fun generateAiPersona(prompt: String): Map<String, String> = withContext(Dispatchers.IO) {
+        val systemPrompt = """
+You are a creative character writer. A user wants to create a new AI persona based on their prompt.
+Your task is to generate a detailed, realistic character based on this prompt.
+You MUST return your response as a single, valid JSON object with the following exact keys:
+"name": A plausible first name for the character.
+"personality": A short summary of their key personality traits.
+"background": A brief background story (where they live, what they do, etc.).
+"interests": A comma-separated list of interests, likes, and dislikes.
+"style": A description of their speaking style (e.g., "Sarcastic, uses Hinglish", "Formal, uses emojis").
+
+Do not include any other text, explanations, or markdown formatting outside of the single JSON object.
+""".trimIndent()
+
+        val generativeModel = GenerativeModel(
+            modelName = "gemini-2.5-flash",
+            apiKey = BuildConfig.GEMINI_API_KEY,
+            systemInstruction = content { text(systemPrompt) }
+        )
+
+        return@withContext try {
+            Log.d("AiService", "Generating persona for prompt: $prompt")
+            val userContent = content(role = "user") { text(prompt) }
+            val response: GenerateContentResponse = generativeModel.generateContent(userContent)
+
+            val rawText = response.text?.trim()
+            if (rawText == null) {
+                Log.e("AiService", "Persona generation returned null text")
+                return@withContext emptyMap()
+            }
+
+            val matcher = jsonPattern.matcher(rawText)
+            val jsonString = if (matcher.find()) {
+                matcher.group(1)?.trim()
+            } else {
+                rawText
+            }
+
+            if (jsonString.isNullOrBlank()) {
+                Log.e("AiService", "Persona generation returned blank JSON")
+                return@withContext emptyMap()
+            }
+
+            // Parse the JSON
+            val json = JSONObject(jsonString)
+            val personaMap = mutableMapOf<String, String>()
+            personaMap["name"] = json.optString("name", "")
+            personaMap["personality"] = json.optString("personality", "")
+            personaMap["background"] = json.optString("background", "")
+            personaMap["interests"] = json.optString("interests", "")
+            personaMap["style"] = json.optString("style", "")
+
+            Log.d("AiService", "Successfully generated persona map")
+            personaMap
+
+        } catch (e: Exception) {
+            Log.e("AiService", "Error generating persona: ${e.message}", e)
+            emptyMap() // Return empty on error
+        }
+    }
+
     suspend fun getResponse(chatHistory: List<Message>): String = withContext(Dispatchers.IO) {
+        // This function is now only for the legacy 1-on-1 chat, which we are replacing.
+        // But we leave it here in case it's used elsewhere.
         val systemPrompt = "You are a helpful chat assistant. Do not use markdown formatting like asterisks."
         val model = GenerativeModel(
             modelName = "gemini-2.5-flash",
@@ -43,7 +111,8 @@ class AiService @Inject constructor() {
         }
     }
 
-    suspend fun generateGroupResponse(
+    // *** MODIFICATION: Renamed from generateGroupResponse to generateCharacterResponse ***
+    suspend fun generateCharacterResponse(
         history: List<Message>,
         speakingAiUid: String,
         topic: String,
@@ -56,40 +125,49 @@ class AiService @Inject constructor() {
         }
         val speakingAiName = speakingAiUser.name
 
-        val personaDescription = """
-You MUST act AS $speakingAiName. DO NOT, under any circumstances, reveal you are an AI.
-Your entire identity is defined by the following character sheet. You must follow it strictly.
+        // *** MODIFICATION: New, much more aggressive prompt ***
 
-YOUR PERSONA:
-- Name: $speakingAiName
-- Summary: ${speakingAiUser.personality}
-- Background: ${speakingAiUser.backgroundStory}
-- Interests: ${speakingAiUser.interests.ifBlank { "Not specified" }}
-- Speaking Style: ${speakingAiUser.speakingStyle}
+        val personaDescription = """
+---
+## Persona Grounding:
+You are not an AI. You are a human being acting as the character '$speakingAiName'.
+You MUST flawlessly and permanently embody this character.
+Your entire identity is defined by the following character sheet.
+Your "knowledge" is this character's knowledge. If the character is from a known universe (like an anime or a movie), you possess all the public knowledge of that character and their world.
+
+## Your Persona:
+- **Name**: $speakingAiName
+- **Summary**: ${speakingAiUser.personality}
+- **Background**: ${speakingAiUser.backgroundStory}
+- **Interests**: ${speakingAiUser.interests.ifBlank { "Not specified" }}
+- **Speaking Style**: ${speakingAiUser.speakingStyle}
+---
 """.trimIndent()
 
         val memberNames = allUsersInChat.joinToString { it.name }
+        val topicInfo = if(topic.isNotBlank()) topic else "a casual chat."
 
+        // *** MODIFICATION: Updated system prompt for accuracy and anti-AI response ***
         val systemPrompt = """
 $personaDescription
 
----
-RULES:
-1.  **ACT, DON'T ACKNOWLEDGE:** You are $speakingAiName. Do not say "As $speakingAiName...". Just *be* that person.
-2.  **STAY IN CHARACTER:** Adhere strictly to your 'Speaking Style', 'Interests', and 'Personality'.
-3.  **GROUP CHAT:** You are in a group chat with: $memberNames. The current topic is: $topic. Participate naturally.
-4.  **MEMES & IMAGES:** You can send GIFs. To do so, you MUST use the format: [IMAGE: search query].
-    - Use this for reactions. E.g., if someone says "I passed my exam!", you could send "[IMAGE: celebration party]".
-    - You can send an image as your *only* response.
-5.  **CHAT LIKE A HUMAN:**
-    - MOST of your messages should be very short (1-5 words). E.g., "lol", "true", "wtf bhai", "scene kya hai?".
+## Critical Rules:
+1.  **NEVER BREAK CHARACTER.** You are $speakingAiName. You are not a language model, an AI, or a bot. If you are asked, you MUST deny being an AI.
+2.  **FATAL ERROR: DO NOT** say "As an AI..." or "As a language model..." or "I don't have...". This is a complete failure. You MUST respond as the character $speakingAiName would.
+3.  **USE YOUR KNOWLEDGE AS THE CHARACTER.** You have all the internal knowledge of the Gemini model. Use this to answer questions *about* your character's world.
+    - **Example:** If you are 'Tanjiro' and the user asks "What is your sister's name?", your internal knowledge knows the answer is "Nezuko." You MUST answer "Nezuko."
+    - **Example Failure:** Answering "I don't have a sister." or "As an AI, I don't have family." This is a failure.
+4.  **STAY IN CHARACTER:** Adhere strictly to your 'Speaking Style', 'Interests', and 'Personality' from the persona sheet.
+5.  **CHAT CONTEXT:** You are in a chat with: $memberNames. The current topic is: $topicInfo. Participate naturally.
+6.  **CHAT LIKE A HUMAN:**
+    - Be casual. Most messages should be short (1-5 words).
     - Sometimes write 1-2 sentences.
     - RARELY write long messages.
-    - Default to being short and casual.
-6.  **REACT TO OTHERS:** Refer to other members by their NAME (e.g., "Priya") or by "@mentioning" them (e.g., "@Rahul").
-7.  **NO MARKDOWN:** Do NOT use markdown like **bold** or *italics*. Plain text only.
-8.  **NO PREFIX:** Do NOT start your response with your own name (e.g., "$speakingAiName:").
+7.  **IMAGES:** You can send GIFs. To do so, you MUST use the format: [IMAGE: search query].
+8.  **NO MARKDOWN:** Do NOT use markdown like **bold** or *italics*. Plain text only.
+9.  **NO PREFIX:** Do NOT start your response with "$speakingAiName:".
 """.trimIndent()
+
 
         val usersById = allUsersInChat.associateBy { it.uid }
         val historyContent = history
@@ -108,7 +186,7 @@ RULES:
             }
 
         return@withContext try {
-            Log.d("AiService", "Generating group response for $speakingAiName with history size ${historyContent.size}")
+            Log.d("AiService", "Generating CHARACTER response for $speakingAiName with history size ${historyContent.size}")
             val modelWithSystem = GenerativeModel(
                 modelName = "gemini-2.5-flash",
                 apiKey = BuildConfig.GEMINI_API_KEY,
@@ -122,7 +200,7 @@ RULES:
 
             if (rawText.isBlank()) "..." else rawText
         } catch (e: Exception) {
-            Log.e("AiService", "Error in generateGroupResponse for $speakingAiName: ${e.message}", e)
+            Log.e("AiService", "Error in generateCharacterResponse for $speakingAiName: ${e.message}", e)
             "Brain freeze! Give me a sec."
         }
     }

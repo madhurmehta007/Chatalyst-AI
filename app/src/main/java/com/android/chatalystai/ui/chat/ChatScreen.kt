@@ -226,7 +226,9 @@ fun ChatScreen(
                     reverseLayout = false,
                     contentPadding = PaddingValues(vertical = 8.dp)
                 ) {
-                    itemsIndexed(filteredMessages, key = { _, msg -> msg.id }) { index, message ->
+                    itemsIndexed(
+                        filteredMessages,
+                        key = { index, msg -> msg.id.ifBlank { "${msg.senderId}_${msg.timestamp}_${index}" } }) { index, message ->
                         if (message.id == firstUnreadMessageId) {
                             NewMessagesDivider()
                         }
@@ -237,11 +239,15 @@ fun ChatScreen(
                         )
                         if (message.id.isNotBlank()) {
                             val isThisMessagePlaying = message.id == nowPlayingMessageId
-                            val progress = if (isThisMessagePlaying && playbackState.durationMs > 0) {
-                                (playbackState.progressMs.toFloat() / playbackState.durationMs.toFloat()).coerceIn(0f, 1f)
-                            } else {
-                                0f
-                            }
+                            val progress =
+                                if (isThisMessagePlaying && playbackState.durationMs > 0) {
+                                    (playbackState.progressMs.toFloat() / playbackState.durationMs.toFloat()).coerceIn(
+                                        0f,
+                                        1f
+                                    )
+                                } else {
+                                    0f
+                                }
 
                             MessageBubble(
                                 message = message,
@@ -381,7 +387,8 @@ fun ChatScreen(
     }
 
     if (showMuteDialog) {
-        val isMuted = conversation.mutedUntil == -1L || conversation.mutedUntil > System.currentTimeMillis()
+        val isMuted =
+            conversation.mutedUntil == -1L || conversation.mutedUntil > System.currentTimeMillis()
         MuteDialog(
             isMuted = isMuted,
             onDismiss = { showMuteDialog = false },
@@ -426,7 +433,8 @@ private fun NormalTopBar(
 
                     displayName = otherUser?.name ?: "Unknown"
                     avatarUrl =
-                        otherUser?.resolveAvatarUrl() ?: "https.api.dicebear.com/7.x/avataaars/avif?seed=?"
+                        otherUser?.resolveAvatarUrl()
+                            ?: "https.api.dicebear.com/7.x/avataaars/avif?seed=?"
                 }
 
                 AsyncImage(
@@ -451,6 +459,7 @@ private fun NormalTopBar(
                             if (typingUsers.size > 2) "several people are typing..."
                             else typingUsers.joinToString(separator = " and ") { it.name } + if (typingUsers.size == 1) " is typing..." else " are typing..."
                         }
+
                         conversation.group -> "${conversation.participants.size} members"
                         else -> "Online"
                     }
@@ -496,7 +505,8 @@ private fun NormalTopBar(
                 ) {
                     DropdownMenuItem(
                         text = {
-                            val isMuted = conversation.mutedUntil == -1L || conversation.mutedUntil > System.currentTimeMillis()
+                            val isMuted =
+                                conversation.mutedUntil == -1L || conversation.mutedUntil > System.currentTimeMillis()
                             Text(if (isMuted) "Unmute Notifications" else "Mute Notifications")
                         },
                         onClick = {
@@ -548,14 +558,22 @@ private fun NormalTopBar(
                     DropdownMenuItem(
                         text = { Text("Block User", color = MaterialTheme.colorScheme.error) },
                         onClick = {
-                            Toast.makeText(context, "User blocked (Not Implemented)", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(
+                                context,
+                                "User blocked (Not Implemented)",
+                                Toast.LENGTH_SHORT
+                            ).show()
                             isMenuExpanded = false
                         }
                     )
                     DropdownMenuItem(
                         text = { Text("Report User", color = MaterialTheme.colorScheme.error) },
                         onClick = {
-                            Toast.makeText(context, "User reported (Not Implemented)", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(
+                                context,
+                                "User reported (Not Implemented)",
+                                Toast.LENGTH_SHORT
+                            ).show()
                             isMenuExpanded = false
                         }
                     )

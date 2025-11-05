@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import java.util.UUID
 import java.util.regex.Pattern
 import kotlin.random.Random
 
@@ -49,7 +50,8 @@ class GroupChatService(
             Log.d("GroupChatService", "Service loop started")
             while (isActive) {
                 try {
-                    val conversations = conversationRepository.getConversations().filter { it.group }
+                    val conversations =
+                        conversationRepository.getConversations().filter { it.group }
                     Log.d("GroupChatService", "Checking ${conversations.size} group conversations")
 
                     val currentUsers = _users.value
@@ -70,7 +72,10 @@ class GroupChatService(
                         val isChatInactive = timeSinceLastMessage > 150_000 && lastTimestamp != 0L
 
                         if (isChatInactive) {
-                            Log.d("GroupChatService", "Conv ${conversation.id}: Skipping AI response, chat inactive for ${timeSinceLastMessage / 1000}s.")
+                            Log.d(
+                                "GroupChatService",
+                                "Conv ${conversation.id}: Skipping AI response, chat inactive for ${timeSinceLastMessage / 1000}s."
+                            )
                             return@forEach
                         }
 
@@ -87,54 +92,78 @@ class GroupChatService(
                         }
 
 
-                        val humanSpokeRecently = lastMessage != null && !lastMessage.senderId.startsWith("ai_")
+                        val humanSpokeRecently =
+                            lastMessage != null && !lastMessage.senderId.startsWith("ai_")
                         val aiWasMentioned = mentionedAi != null
                         val randomChance = Random.nextFloat() < 0.5f
 
-                        val shouldAiSpeak = (aiWasMentioned && lastMessage?.senderId != mentionedAi?.uid) ||
-                                humanSpokeRecently ||
-                                randomChance
+                        val shouldAiSpeak =
+                            (aiWasMentioned && lastMessage?.senderId != mentionedAi?.uid) ||
+                                    humanSpokeRecently ||
+                                    randomChance
 
-                        Log.v("GroupChatService", "Conv ${conversation.id}: Should AI speak? $shouldAiSpeak (Mentioned: $aiWasMentioned, Human spoke: $humanSpokeRecently, Random: $randomChance)")
+                        Log.v(
+                            "GroupChatService",
+                            "Conv ${conversation.id}: Should AI speak? $shouldAiSpeak (Mentioned: $aiWasMentioned, Human spoke: $humanSpokeRecently, Random: $randomChance)"
+                        )
 
                         if (shouldAiSpeak) {
                             val participantIds = conversation.participants.keys
                             val usersInThisChat = currentUsers.filter { it.uid in participantIds }
 
                             if (usersInThisChat.isEmpty()) {
-                                Log.w("GroupChatService", "User data is incomplete for conv ${conversation.id}. Skipping.")
+                                Log.w(
+                                    "GroupChatService",
+                                    "User data is incomplete for conv ${conversation.id}. Skipping."
+                                )
                                 return@forEach
                             }
 
                             val speakingAiUid: String
                             if (aiWasMentioned) {
-                                speakingAiUid = mentionedAi!!.uid
-                                Log.d("GroupChatService", "Forcing response from mentioned AI: ${mentionedAi.name}")
+                                speakingAiUid = mentionedAi.uid
+                                Log.d(
+                                    "GroupChatService",
+                                    "Forcing response from mentioned AI: ${mentionedAi.name}"
+                                )
                             } else {
                                 val aiParticipantIds = aiParticipantsInChat.map { it.uid }
-                                val potentialSpeakers = if (lastMessage?.senderId?.startsWith("ai_") == true) {
-                                    aiParticipantIds.filter { it != lastMessage.senderId }
-                                } else {
-                                    aiParticipantIds
-                                }
-                                speakingAiUid = potentialSpeakers.ifEmpty { aiParticipantIds }.random()
+                                val potentialSpeakers =
+                                    if (lastMessage?.senderId?.startsWith("ai_") == true) {
+                                        aiParticipantIds.filter { it != lastMessage.senderId }
+                                    } else {
+                                        aiParticipantIds
+                                    }
+                                speakingAiUid =
+                                    potentialSpeakers.ifEmpty { aiParticipantIds }.random()
                             }
 
                             val speakingAiUser = usersInThisChat.find { it.uid == speakingAiUid }
                             val history = conversation.messages.values.toList()
 
-                            Log.d("GroupChatService", "AI ${speakingAiUser?.name ?: speakingAiUid} speaking.")
+                            Log.d(
+                                "GroupChatService",
+                                "AI ${speakingAiUser?.name ?: speakingAiUid} speaking."
+                            )
 
-                            conversationRepository.setTypingIndicator(conversation.id, speakingAiUid, true)
+                            conversationRepository.setTypingIndicator(
+                                conversation.id,
+                                speakingAiUid,
+                                true
+                            )
 
-                            val rawResponse = aiService.generateGroupResponse(
+                            val rawResponse = aiService.generateCharacterResponse(
                                 history,
                                 speakingAiUid,
                                 conversation.topic,
                                 usersInThisChat
                             )
 
-                            conversationRepository.setTypingIndicator(conversation.id, speakingAiUid, false)
+                            conversationRepository.setTypingIndicator(
+                                conversation.id,
+                                speakingAiUid,
+                                false
+                            )
 
                             val matcher = imagePattern.matcher(rawResponse)
 
@@ -144,33 +173,52 @@ class GroupChatService(
 
                                 if (textPart.isNotBlank() && !textPart.startsWith("Brain freeze")) {
                                     val textMessage = Message(
+                                        id = UUID.randomUUID().toString(),
                                         senderId = speakingAiUid,
                                         content = textPart.replace("**", "").trim(),
-                                        timestamp = System.currentTimeMillis()
+                                        timestamp = System.currentTimeMillis(),
+                                        isSent = false
                                     )
                                     conversationRepository.addMessage(conversation.id, textMessage)
                                     delay(1000)
                                 }
 
                                 if (!searchQuery.isNullOrBlank()) {
-                                    Log.d("GroupChatService", "AI requested image for query: '$searchQuery'")
+                                    Log.d(
+                                        "GroupChatService",
+                                        "AI requested image for query: '$searchQuery'"
+                                    )
                                     val imageUrl = giphyService.searchGif(searchQuery)
                                     if (imageUrl != null) {
                                         val imageMessage = Message(
+                                            id = UUID.randomUUID().toString(),
                                             senderId = speakingAiUid,
                                             content = imageUrl,
                                             type = MessageType.IMAGE,
-                                            timestamp = System.currentTimeMillis()
+                                            timestamp = System.currentTimeMillis(),
+                                            isSent = false
                                         )
-                                        conversationRepository.addMessage(conversation.id, imageMessage)
+                                        conversationRepository.addMessage(
+                                            conversation.id,
+                                            imageMessage
+                                        )
                                     } else {
-                                        Log.w("GroupChatService", "Giphy returned no URL for '$searchQuery'")
+                                        Log.w(
+                                            "GroupChatService",
+                                            "Giphy returned no URL for '$searchQuery'"
+                                        )
                                     }
                                 }
                             } else {
                                 val cleanedResponse = rawResponse.replace("**", "").trim()
-                                if (cleanedResponse.isNotBlank() && cleanedResponse != "..." && !cleanedResponse.startsWith("Brain freeze")) {
-                                    Log.d("GroupChatService", "AI ${speakingAiUser?.name} response: $cleanedResponse")
+                                if (cleanedResponse.isNotBlank() && cleanedResponse != "..." && !cleanedResponse.startsWith(
+                                        "Brain freeze"
+                                    )
+                                ) {
+                                    Log.d(
+                                        "GroupChatService",
+                                        "AI ${speakingAiUser?.name} response: $cleanedResponse"
+                                    )
                                     val newMessage = Message(
                                         senderId = speakingAiUid,
                                         content = cleanedResponse,
@@ -178,7 +226,10 @@ class GroupChatService(
                                     )
                                     conversationRepository.addMessage(conversation.id, newMessage)
                                 } else {
-                                    Log.d("GroupChatService", "AI ${speakingAiUser?.name} generated blank response, skipping.")
+                                    Log.d(
+                                        "GroupChatService",
+                                        "AI ${speakingAiUser?.name} generated blank response, skipping."
+                                    )
                                 }
                             }
                         }

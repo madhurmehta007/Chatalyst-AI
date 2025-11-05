@@ -3,23 +3,22 @@ package com.android.chatalystai.ui.add_ai
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.android.chatalystai.data.model.User
+import com.android.chatalystai.data.remote.AiService
 import com.android.chatalystai.data.repository.ConversationRepository
-import com.google.firebase.Firebase
-import com.google.firebase.auth.auth
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.net.URLEncoder
 import java.util.UUID
 import javax.inject.Inject
 
 @HiltViewModel
-class AddAiCharacterViewModel @Inject constructor(private val repository: ConversationRepository) : ViewModel() {
+class AddAiCharacterViewModel @Inject constructor(
+    private val repository: ConversationRepository,
+    private val aiService: AiService
+) : ViewModel() {
 
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
@@ -30,16 +29,39 @@ class AddAiCharacterViewModel @Inject constructor(private val repository: Conver
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
 
-    // *** MODIFICATION: Removed isUserPremium flow ***
+    private val _generatedPersona = MutableStateFlow<Map<String, String>?>(null)
+    val generatedPersona: StateFlow<Map<String, String>?> = _generatedPersona.asStateFlow()
 
-    fun addAiCharacter(
+    fun generatePersona(prompt: String) {
+        if (prompt.isBlank()) {
+            _errorMessage.value = "Please enter a prompt to generate a persona."
+            return
+        }
+        viewModelScope.launch {
+            _isLoading.value = true
+            _errorMessage.value = null
+            try {
+                val personaMap = aiService.generateAiPersona(prompt)
+                if (personaMap.isEmpty()) {
+                    _errorMessage.value = "Failed to generate persona. Please try again."
+                } else {
+                    _generatedPersona.value = personaMap
+                }
+            } catch (e: Exception) {
+                _errorMessage.value = "An error occurred: ${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    fun saveAiCharacter(
         name: String,
         personality: String,
         background: String,
         interests: String,
         style: String
     ) {
-        // *** MODIFICATION: Removed premium check ***
 
         if (name.isBlank() || personality.isBlank() || background.isBlank() || style.isBlank()) {
             _errorMessage.value = "All fields except Interests are required."
@@ -73,7 +95,7 @@ class AddAiCharacterViewModel @Inject constructor(private val repository: Conver
                 _addSuccess.value = true
 
             } catch (e: Exception) {
-                _errorMessage.value = "An error occurred: ${e.message}" // Generic error
+                _errorMessage.value = "An error occurred: ${e.message}"
             }
             finally { _isLoading.value = false }
 
@@ -86,5 +108,9 @@ class AddAiCharacterViewModel @Inject constructor(private val repository: Conver
 
     fun resetSuccess() {
         _addSuccess.value = false
+    }
+
+    fun clearGeneratedPersona() {
+        _generatedPersona.value = null
     }
 }

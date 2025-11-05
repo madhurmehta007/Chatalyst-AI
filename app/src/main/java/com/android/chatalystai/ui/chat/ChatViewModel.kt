@@ -147,7 +147,6 @@ class ChatViewModel @Inject constructor(
         }
     }
 
-    // *** MODIFICATION: Helper to get message preview text ***
     private fun getMessagePreview(message: Message): String {
         return when (message.type) {
             MessageType.TEXT -> message.content
@@ -193,14 +192,38 @@ class ChatViewModel @Inject constructor(
 
                     Log.d("ChatViewModel", "History size for AI: ${historyForAI.size}, Last User Msg: ${userMessage.content}")
 
-                    val aiResponseText = aiService.getResponse(historyForAI)
+
+                    // 1. Get the AI User object
+                    val aiUser = _users.value.find { it.uid == aiParticipantId }
+                    // 2. Get all users in this 1-on-1 chat
+                    val allUsersInChat = _users.value.filter { it.uid == currentUserId || it.uid == aiParticipantId }
+
+                    if (aiUser == null) {
+                        Log.e("ChatViewModel", "Could not find AI User object for $aiParticipantId. Aborting response.")
+                        // *** MODIFICATION: Changed return@try to return@launch ***
+                        return@launch
+                    }
+
+                    Log.d("ChatViewModel", "Generating response for ${aiUser.name} (ID: ${aiUser.uid})")
+
+                    // 3. Call the correct function
+                    val aiResponseText = aiService.generateCharacterResponse(
+                        history = historyForAI,
+                        speakingAiUid = aiParticipantId,
+                        topic = currentConvoState.topic.ifBlank { "A 1-on-1 chat with ${aiUser.name}" },
+                        allUsersInChat = allUsersInChat
+                    )
+
+
                     Log.d("ChatViewModel", "AI response received: $aiResponseText")
 
                     if (aiResponseText.isNotBlank()) {
                         val aiMessage = Message(
+                            id = UUID.randomUUID().toString(),
                             senderId = aiParticipantId,
                             content = aiResponseText,
-                            timestamp = System.currentTimeMillis() + 1
+                            timestamp = System.currentTimeMillis() + 1,
+                            isSent = false
                         )
                         repository.addMessage(conversationId, aiMessage)
                         Log.d("ChatViewModel", "AI message sent to repo: ${aiMessage.content}")
@@ -248,7 +271,7 @@ class ChatViewModel @Inject constructor(
             if (conversation == null) {
                 emptyList()
             } else {
-                val allMessages = conversation.messages.values.sortedBy { it.timestamp } // *** MODIFICATION: Sort by ascending for divider logic ***
+                val allMessages = conversation.messages.values.sortedBy { it.timestamp }
                 if (query.isBlank()) {
                     allMessages
                 } else {
@@ -264,7 +287,7 @@ class ChatViewModel @Inject constructor(
         _searchQuery.value = query
     }
 
-    // *** MODIFICATION: Helper to find first unread message ***
+
     private fun findFirstUnreadMessageId(conversation: Conversation): String? {
         val userId = currentUserId ?: return null
         return conversation.messages.values
@@ -293,14 +316,14 @@ class ChatViewModel @Inject constructor(
         }
     }
 
-    // *** MODIFICATION: Renamed to deleteMessages for multi-delete ***
+
     fun deleteMessages(conversationId: String, messageIds: List<String>) {
         viewModelScope.launch {
             repository.deleteMessages(conversationId, messageIds)
         }
     }
 
-    // *** MODIFICATION: Added clearChat ***
+
     fun clearChat(conversationId: String) {
         viewModelScope.launch {
             repository.clearChat(conversationId)
@@ -325,11 +348,14 @@ class ChatViewModel @Inject constructor(
                 storageRef.putFile(imageUri).await()
                 val downloadUrl = storageRef.downloadUrl.await().toString()
 
+                // *** MODIFICATION: Added id and isSent ***
                 val imageMessage = Message(
+                    id = UUID.randomUUID().toString(),
                     senderId = currentUser.uid,
                     content = downloadUrl,
                     timestamp = System.currentTimeMillis(),
-                    type = MessageType.IMAGE
+                    type = MessageType.IMAGE,
+                    isSent = false
                 )
                 repository.addMessage(conversationId, imageMessage)
 
@@ -381,12 +407,15 @@ class ChatViewModel @Inject constructor(
                 storageRef.putFile(Uri.fromFile(audioFile)).await()
                 val downloadUrl = storageRef.downloadUrl.await().toString()
 
+                // *** MODIFICATION: Added id and isSent ***
                 val audioMessage = Message(
+                    id = UUID.randomUUID().toString(),
                     senderId = currentUser.uid,
                     content = downloadUrl,
                     timestamp = System.currentTimeMillis(),
                     type = MessageType.AUDIO,
-                    audioDurationMs = audioDuration
+                    audioDurationMs = audioDuration,
+                    isSent = false
                 )
                 repository.addMessage(conversationId, audioMessage)
                 audioFile.delete()
@@ -431,11 +460,14 @@ class ChatViewModel @Inject constructor(
         storageRef.putFile(imageUri).await()
         val downloadUrl = storageRef.downloadUrl.await().toString()
 
+        // *** MODIFICATION: Added id and isSent ***
         val imageMessage = Message(
+            id = UUID.randomUUID().toString(),
             senderId = senderId,
             content = downloadUrl,
             timestamp = System.currentTimeMillis(),
-            type = MessageType.IMAGE
+            type = MessageType.IMAGE,
+            isSent = false
         )
         repository.addMessage(conversationId, imageMessage)
     }
@@ -444,11 +476,15 @@ class ChatViewModel @Inject constructor(
         // TODO: Implement video uploading and thumbnail generation
         // For now, just send a text message as a placeholder
         Log.w("ChatViewModel", "Video sending not implemented. Sending placeholder text.")
+
+        // *** MODIFICATION: Added id and isSent ***
         val videoMessage = Message(
+            id = UUID.randomUUID().toString(),
             senderId = senderId,
             content = "▶️ Video (Sending not yet supported)",
             timestamp = System.currentTimeMillis(),
-            type = MessageType.TEXT // Placeholder type
+            type = MessageType.TEXT, // Placeholder type
+            isSent = false
         )
         repository.addMessage(conversationId, videoMessage)
     }

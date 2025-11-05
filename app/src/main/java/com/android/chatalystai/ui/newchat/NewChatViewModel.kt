@@ -16,6 +16,14 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+private val PREMADE_AI_IDS = listOf(
+    "ai_rahul",
+    "ai_priya",
+    "ai_amit",
+    "ai_sneha",
+    "ai_vikram"
+)
+
 @HiltViewModel
 class NewChatViewModel @Inject constructor(private val repository: ConversationRepository) : ViewModel() {
 
@@ -24,14 +32,32 @@ class NewChatViewModel @Inject constructor(private val repository: ConversationR
 
     private val currentUserId = Firebase.auth.currentUser?.uid
 
-    val users: StateFlow<List<User>> = repository.getUsersFlow()
+    private val allOtherUsers: StateFlow<List<User>> = repository.getUsersFlow()
         .map { users ->
             _isLoading.value = false
             users.filter { it.uid != currentUserId }
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    // *** MODIFICATION: Expose isUserPremium state ***
+    val premadeAiCharacters: StateFlow<List<User>> = allOtherUsers
+        .map { users ->
+            users.filter { it.uid in PREMADE_AI_IDS }
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val customAiCharacters: StateFlow<List<User>> = allOtherUsers
+        .map { users ->
+            users.filter { it.uid.startsWith("ai_") && it.uid !in PREMADE_AI_IDS }
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val humanContacts: StateFlow<List<User>> = allOtherUsers
+        .map { users ->
+            users.filter { !it.uid.startsWith("ai_") }
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+
     val isUserPremium: StateFlow<Boolean> = repository.getUsersFlow()
         .map { users ->
             users.find { it.uid == currentUserId }?.premium ?: false

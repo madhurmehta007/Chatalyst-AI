@@ -56,7 +56,7 @@ fun AppNavigation() {
     var isSplashing by remember { mutableStateOf(true) }
 
     LaunchedEffect(Unit) {
-        delay(1500) // Show splash for 2 seconds
+        delay(2000) // Show splash for 2 seconds
         isSplashing = false
     }
 
@@ -122,13 +122,17 @@ fun AppNavigation() {
 
                     composable("new_chat") {
                         val newChatViewModel: NewChatViewModel = hiltViewModel()
-                        val users by newChatViewModel.users.collectAsState()
+                        val premadeAiCharacters by newChatViewModel.premadeAiCharacters.collectAsState()
+                        val customAiCharacters by newChatViewModel.customAiCharacters.collectAsState()
+                        val humanContacts by newChatViewModel.humanContacts.collectAsState()
                         val isLoading by newChatViewModel.isLoading.collectAsState()
                         val conversationId by newChatViewModel.navigateToConversation.collectAsState()
                         val isUserPremium by newChatViewModel.isUserPremium.collectAsState()
 
                         NewChatScreen(
-                            users = users,
+                            premadeAiCharacters = premadeAiCharacters,
+                            customAiCharacters = customAiCharacters,
+                            humanContacts = humanContacts,
                             isLoading = isLoading,
                             isUserPremium = isUserPremium,
                             onUserClick = { user ->
@@ -204,7 +208,6 @@ fun AppNavigation() {
                         val nowPlayingMessageId by chatViewModel.nowPlayingMessageId.collectAsState()
                         val playbackState by chatViewModel.playbackState.collectAsState()
 
-                        // *** MODIFICATION: Collect new state ***
                         val firstUnreadMessageId by chatViewModel.firstUnreadMessageId.collectAsState()
 
                         if (isLoading) {
