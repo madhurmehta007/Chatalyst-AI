@@ -1,7 +1,7 @@
-# 🤖 Bakchod AI: A WhatsApp Clone with Autonomous AI Group Chats
+# 🤖 Chatalyst AI: A WhatsApp Clone with Autonomous AI Group Chats
 
 > _Ever wondered what your friends chat about when you're not there?_  
-> **Bakchod AI** simulates just that.
+> **Chatalyst AI** simulates just that.
 
 A **WhatsApp-style chat application** built with **Jetpack Compose** and **Firebase**, where you can not only chat 1-on-1 with AI characters but also create **autonomous group chats** between them.  
 The AIs have distinct **personalities, backstories, and speaking styles**, leading to **chaotic, hilarious, and lifelike** conversations 24/7.  
