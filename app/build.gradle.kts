@@ -17,11 +17,11 @@ if (localPropertiesFile.exists()) {
 }
 
 android {
-    namespace = "com.android.bakchodai"
+    namespace = "com.android.chatalystai"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.android.bakchodai"
+        applicationId = "com.android.chatalystai"
         minSdk = 27
         targetSdk = 36
         versionCode = 1
