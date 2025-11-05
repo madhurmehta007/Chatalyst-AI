@@ -56,7 +56,7 @@ fun AppNavigation() {
     var isSplashing by remember { mutableStateOf(true) }
 
     LaunchedEffect(Unit) {
-        delay(2000) // Show splash for 2 seconds
+        delay(1500) // Show splash for 2 seconds
         isSplashing = false
     }
 

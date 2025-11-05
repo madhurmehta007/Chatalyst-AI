@@ -55,12 +55,6 @@ android {
         compose = true
         buildConfig = true
     }
-    Properties().apply {
-        load(FileInputStream(rootProject.file("local.properties")))
-        android.defaultConfig.buildConfigField("String", "GEMINI_API_KEY", "\"${getProperty("GEMINI_API_KEY")}\"")
-        android.defaultConfig.buildConfigField("String", "GIPHY_API_KEY", "\"${getProperty("GIPHY_API_KEY")}\"")
-        android.defaultConfig.buildConfigField("String", "WEB_CLIENT_ID", "\"${getProperty("WEB_CLIENT_ID")}\"")
-    }
     kapt {
         correctErrorTypes = true
     }
@@ -76,6 +70,7 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
+    implementation(libs.androidx.core.splashscreen)
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.9.4")
     implementation("androidx.navigation:navigation-compose:2.9.5")

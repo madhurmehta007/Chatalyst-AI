@@ -1,8 +1,8 @@
 package com.android.bakchodai
 
 import android.Manifest
-import android.app.NotificationManager // Import
-import android.content.Context // Import
+import android.app.NotificationManager
+import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -17,6 +17,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.lifecycleScope
 import com.android.bakchodai.data.repository.ConversationRepository
 import com.android.bakchodai.ui.navigation.AppNavigation
@@ -30,8 +31,10 @@ import javax.inject.Inject
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
-    @Inject lateinit var repository: ConversationRepository
-    @Inject lateinit var auth: FirebaseAuth
+    @Inject
+    lateinit var repository: ConversationRepository
+    @Inject
+    lateinit var auth: FirebaseAuth
 
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -81,13 +84,17 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun clearNotifications() {
-        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val notificationManager =
+            getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         notificationManager.cancelAll()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        val splashScreen = installSplashScreen()
+        splashScreen.setKeepOnScreenCondition {
+            false
+        }
         super.onCreate(savedInstanceState)
-
         askNotificationPermission()
         askMediaPermissions()
         clearNotifications()
