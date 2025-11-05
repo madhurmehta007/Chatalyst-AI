@@ -34,7 +34,7 @@ class NewChatViewModel @Inject constructor(private val repository: ConversationR
     // *** MODIFICATION: Expose isUserPremium state ***
     val isUserPremium: StateFlow<Boolean> = repository.getUsersFlow()
         .map { users ->
-            users.find { it.uid == currentUserId }?.isPremium ?: false
+            users.find { it.uid == currentUserId }?.premium ?: false
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 

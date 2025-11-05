@@ -2,12 +2,20 @@
 
 package com.android.bakchodai.ui.auth
 
+import android.content.Context
 import android.net.Uri
 import android.util.Log
+import androidx.credentials.CredentialManager
+import androidx.credentials.CustomCredential
+import androidx.credentials.GetCredentialRequest
+import androidx.credentials.exceptions.GetCredentialCancellationException
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.android.bakchodai.BuildConfig
 import com.android.bakchodai.data.model.User
 import com.android.bakchodai.data.repository.ConversationRepository
+import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
+import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
 import com.google.firebase.auth.FirebaseAuthInvalidUserException
@@ -86,6 +94,43 @@ class AuthViewModel @Inject constructor(
                 _authState.value = AuthState.LOGGED_OUT
             } else {
                 _authState.value = AuthState.LOGGED_IN
+            }
+        }
+    }
+
+    fun startGoogleSignIn(context: Context, credentialManager: CredentialManager) {
+        // Use viewModelScope. It survives UI recomposition.
+        viewModelScope.launch {
+            val signInWithGoogleOption = GetSignInWithGoogleOption.Builder(BuildConfig.WEB_CLIENT_ID)
+                .build()
+
+            val request = GetCredentialRequest.Builder()
+                .addCredentialOption(signInWithGoogleOption)
+                .build()
+
+            try {
+                val result = credentialManager.getCredential(
+                    context = context, // Use the context from the UI
+                    request = request
+                )
+
+                val credential = result.credential
+                if (credential is CustomCredential &&
+                    credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL
+                ) {
+                    val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(credential.data)
+                    val idToken = googleIdTokenCredential.idToken
+                    signInWithGoogle(idToken) // Call your existing sign-in function
+                }
+            } catch (e: GetCredentialCancellationException) {
+                e.printStackTrace()
+                // This will now correctly catch *only* real user cancellations
+                Log.i("AuthViewModel", "Sign-in cancelled by user.")
+            } catch (e: Exception) {
+                e.printStackTrace()
+                // This catches all other errors (network, config, etc.)
+                Log.e("AuthViewModel", "Google Sign-In failed", e)
+                // Update a MutableState to show an error message to the user
             }
         }
     }

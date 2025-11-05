@@ -509,9 +509,10 @@ class OfflineFirstConversationRepository @Inject constructor(
         uid, name, avatarUrl, personality,
         backgroundStory, interests, speakingStyle,
         isOnline, lastSeen,fcmToken,
-        bio,isPremium,
+        bio,premium,
         avatarUploadTimestamp
     )
+
     private fun UserEntity.toModel() = User(
         uid, name, avatarUrl, personality,
         backgroundStory, interests, speakingStyle,
@@ -519,6 +520,7 @@ class OfflineFirstConversationRepository @Inject constructor(
         bio,isPremium,
         avatarUploadTimestamp
     )
+
     private fun Conversation.toEntity() = ConversationEntity(
         id, name, participants, messages, group, topic, typing,
         runBlocking { conversationDao.getConversationByIdSuspend(id)?.mutedUntil ?: 0L }

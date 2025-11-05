@@ -16,6 +16,7 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.Close
@@ -118,7 +119,7 @@ fun MainScreen(
                     containerColor = MaterialTheme.colorScheme.secondary
                 ) {
                     if (pagerState.currentPage == 0) {
-                        Icon(Icons.Default.Chat, contentDescription = "New Chat", tint = Color.White)
+                        Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = "New Chat", tint = Color.White)
                     } else {
                         Icon(Icons.Default.Groups, contentDescription = "New Group", tint = Color.White)
                     }

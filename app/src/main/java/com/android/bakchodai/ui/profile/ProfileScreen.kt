@@ -202,7 +202,7 @@ fun ProfileScreen(
             }
         )
 
-        if (user?.isPremium == false) {
+        if (user?.premium == false) {
             Spacer(modifier = Modifier.padding(horizontal = 16.dp))
             ProfileListItem(
                 icon = Icons.Default.WorkspacePremium,

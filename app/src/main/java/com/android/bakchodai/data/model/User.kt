@@ -16,7 +16,7 @@ data class User(
     val lastSeen: Long = 0L,
     val fcmToken: String = "",
     val bio: String = "",
-    val isPremium: Boolean = false,
+    val premium: Boolean = false,
     val avatarUploadTimestamp: Long = 0L
 ) {
     fun resolveAvatarUrl(): String {
