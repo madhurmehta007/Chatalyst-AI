@@ -1,3 +1,5 @@
+// chatalystai/data/model/User.kt
+
 package com.android.chatalystai.data.model
 
 import com.google.firebase.database.IgnoreExtraProperties
@@ -20,22 +22,15 @@ data class User(
     val avatarUploadTimestamp: Long = 0L
 ) {
     fun resolveAvatarUrl(): String {
-        val baseUrl = if (!avatarUrl.isNullOrBlank()) {
-            avatarUrl
-        } else {
-            val encodedName = try {
-                URLEncoder.encode(name, "UTF-8")
-            } catch (e: Exception) {
-                name
-            }
-            "https://api.dicebear.com/7.x/avataaars/avif?seed=${encodedName}"
+        if (avatarUrl.isNullOrBlank()) {
+            return ""
         }
 
         return if (avatarUploadTimestamp > 0) {
-            if (baseUrl.contains("?")) "$baseUrl&t=$avatarUploadTimestamp"
-            else "$baseUrl?t=$avatarUploadTimestamp"
+            if (avatarUrl.contains("?")) "$avatarUrl&t=$avatarUploadTimestamp"
+            else "$avatarUrl?t=$avatarUploadTimestamp"
         } else {
-            baseUrl
+            avatarUrl
         }
     }
 

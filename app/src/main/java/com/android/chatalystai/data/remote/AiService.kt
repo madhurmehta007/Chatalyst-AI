@@ -1,3 +1,5 @@
+// chatalystai/data/remote/AiService.kt
+
 package com.android.chatalystai.data.remote
 
 import android.util.Log
@@ -14,7 +16,6 @@ import org.json.JSONObject
 import java.util.regex.Pattern
 import javax.inject.Inject
 import javax.inject.Singleton
-import kotlin.text.get
 
 @Singleton
 class AiService @Inject constructor() {
@@ -28,6 +29,7 @@ class AiService @Inject constructor() {
     }
 
     suspend fun generateAiPersona(prompt: String): Map<String, String> = withContext(Dispatchers.IO) {
+        // *** MODIFICATION: Heavily modified system prompt for static images ***
         val systemPrompt = """
 You are a creative character writer. A user wants to create a new AI persona based on their prompt.
 Your task is to generate a detailed, realistic character based on this prompt.
@@ -37,9 +39,27 @@ You MUST return your response as a single, valid JSON object with the following 
 "background": A brief background story (where they live, what they do, etc.).
 "interests": A comma-separated list of interests, likes, and dislikes.
 "style": A description of their speaking style (e.g., "Sarcastic, uses Hinglish", "Formal, uses emojis").
+"imageSearchQuery": A precise search query for finding a STATIC, NON-ANIMATED, STILL portrait image of this character.
+
+## CRITICAL RULES FOR 'imageSearchQuery' ##
+1.  **NO GIFS. NO ANIMATION.** Your primary goal is to find a STATIC IMAGE, like a photo or a drawing.
+2.  **FORBIDDEN WORDS:** The query MUST NOT contain "gif", "animated", "funny", "meme", "action scene", "fighting", "video", "sticker".
+3.  **REQUIRED WORDS:** The query MUST end with "portrait", "static portrait", "character portrait", or "headshot". This is mandatory.
+
+## QUERY FORMAT EXAMPLES ##
+-   **ANIME/MANGA:** "Sung Jinwoo Solo Leveling static portrait", "Gojo Satoru Jujutsu Kaisen headshot", "Tanjiro Kamado Demon Slayer character portrait"
+-   **REAL PEOPLE:** "Emma Watson portrait", "Elon Musk headshot"
+-   **GENERIC:** "female warrior character portrait", "young male scientist static portrait", "cyberpunk hacker headshot"
+
+## PRIORITY ORDER ##
+1.  If known character → Use exact character name + series name + "static portrait"
+2.  If real person → Use full name + "portrait"
+3.  If generic → Use detailed physical description + "character portrait"
 
 Do not include any other text, explanations, or markdown formatting outside of the single JSON object.
+Your output MUST be only the JSON.
 """.trimIndent()
+        // *** END MODIFICATION ***
 
         val generativeModel = GenerativeModel(
             modelName = "gemini-2.5-flash",
@@ -78,8 +98,9 @@ Do not include any other text, explanations, or markdown formatting outside of t
             personaMap["background"] = json.optString("background", "")
             personaMap["interests"] = json.optString("interests", "")
             personaMap["style"] = json.optString("style", "")
+            personaMap["imageSearchQuery"] = json.optString("imageSearchQuery", "")
 
-            Log.d("AiService", "Successfully generated persona map")
+            Log.d("AiService", "Successfully generated persona map with search query: ${personaMap["imageSearchQuery"]}")
             personaMap
 
         } catch (e: Exception) {

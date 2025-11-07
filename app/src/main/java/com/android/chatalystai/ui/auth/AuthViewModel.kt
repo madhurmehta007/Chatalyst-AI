@@ -1,5 +1,3 @@
-// file: app/src/main/java/com/android/bakchodai/ui/auth/AuthViewModel.kt
-
 package com.android.chatalystai.ui.auth
 
 import android.content.Context
@@ -241,17 +239,12 @@ class AuthViewModel @Inject constructor(
                         FirebaseMessaging.getInstance().token.await()
                     } catch (e: Exception) { "" }
 
-                    val encodedName = try {
-                        URLEncoder.encode(name, "UTF-8")
-                    } catch (e: Exception) {
-                        name
-                    }
-                    val avatarUrl = "https://api.dicebear.com/7.x/avataaars/avif?seed=${encodedName}"
+                    // <-- MODIFIED: Removed Dicebear URL generation -->
 
                     val newUser = User(
                         uid = firebaseUser.uid,
                         name = name,
-                        avatarUrl = avatarUrl,
+                        avatarUrl = null, // <-- MODIFIED: Set to null
                         isOnline = true,
                         lastSeen = System.currentTimeMillis(),
                         fcmToken = token

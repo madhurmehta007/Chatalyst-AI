@@ -1,9 +1,12 @@
+// chatalystai/ui/add_ai/AddAiCharacterViewModel.kt
+
 package com.android.chatalystai.ui.add_ai
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.android.chatalystai.data.model.User
 import com.android.chatalystai.data.remote.AiService
+import com.android.chatalystai.data.remote.GiphyService
 import com.android.chatalystai.data.repository.ConversationRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -17,7 +20,8 @@ import javax.inject.Inject
 @HiltViewModel
 class AddAiCharacterViewModel @Inject constructor(
     private val repository: ConversationRepository,
-    private val aiService: AiService
+    private val aiService: AiService,
+    private val giphyService: GiphyService
 ) : ViewModel() {
 
     private val _isLoading = MutableStateFlow(false)
@@ -60,7 +64,8 @@ class AddAiCharacterViewModel @Inject constructor(
         personality: String,
         background: String,
         interests: String,
-        style: String
+        style: String,
+        imageSearchQuery: String
     ) {
 
         if (name.isBlank() || personality.isBlank() || background.isBlank() || style.isBlank()) {
@@ -73,19 +78,30 @@ class AddAiCharacterViewModel @Inject constructor(
             _errorMessage.value = null
             _addSuccess.value = false
             try {
-                val aiUid = "ai_${name.trim().lowercase().replace("\\s+".toRegex(), "_")}_${UUID.randomUUID().toString().substring(0, 4)}"
-                val encodedName = try {
-                    URLEncoder.encode(name.trim(), "UTF-8")
-                } catch (e: Exception) {
-                    name.trim()
+                val aiUid = "ai_${
+                    name.trim().lowercase().replace("\\s+".toRegex(), "_")
+                }_${UUID.randomUUID().toString().substring(0, 4)}"
+
+                val imageUrl = if (imageSearchQuery.isNotBlank()) {
+                    giphyService.searchGif(imageSearchQuery)
+                } else {
+                    null
                 }
-                val avatarUrl = "https://api.dicebear.com/7.x/avataaars/avif?seed=${encodedName}"
+
+                // *** MODIFICATION: Removed Dicebear fallback ***
+                // If imageUrl is blank (Giphy search failed or no query), finalAvatarUrl will be null.
+                val finalAvatarUrl = if (!imageUrl.isNullOrBlank()) {
+                    imageUrl
+                } else {
+                    null // This will store null in Firebase if Giphy fails
+                }
+                // *** END MODIFICATION ***
 
                 val newAiUser = User(
                     uid = aiUid,
                     name = name.trim(),
                     personality = personality.trim(),
-                    avatarUrl = avatarUrl,
+                    avatarUrl = finalAvatarUrl, // Will be null if Giphy failed
                     backgroundStory = background.trim(),
                     interests = interests.trim(),
                     speakingStyle = style.trim()
@@ -96,8 +112,9 @@ class AddAiCharacterViewModel @Inject constructor(
 
             } catch (e: Exception) {
                 _errorMessage.value = "An error occurred: ${e.message}"
+            } finally {
+                _isLoading.value = false
             }
-            finally { _isLoading.value = false }
 
         }
     }
