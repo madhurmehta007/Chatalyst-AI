@@ -1,5 +1,3 @@
-// chatalystai/data/remote/GiphyService.kt
-
 package com.android.chatalystai.data.remote
 
 import android.util.Log
@@ -25,10 +23,8 @@ class GiphyService @Inject constructor() {
             return@withContext null
         }
 
-        // *** MODIFICATION: Encode query and use standard GIF search endpoint ***
         val encodedQuery = URLEncoder.encode(query, "UTF-8")
         val gifUrl = "https://api.giphy.com/v1/gifs/search?api_key=$apiKey&q=$encodedQuery&limit=10&rating=g&lang=en"
-        // We fetch 10 results to have a better chance of finding a good static image.
 
         return@withContext try {
             Log.d("GiphyService", "Searching for STATIC image with query: $query")
@@ -50,13 +46,11 @@ class GiphyService @Inject constructor() {
             val data = json.getJSONArray("data")
 
             if (data.length() > 0) {
-                // *** MODIFICATION: Iterate results to find a valid *STILL* image ***
                 for (i in 0 until data.length()) {
                     try {
                         val item = data.getJSONObject(i)
                         val images = item.getJSONObject("images")
 
-                        // Define a priority order for still images
                         val stillImagePriority = listOf(
                             "fixed_height_still",
                             "original_still",
@@ -69,23 +63,19 @@ class GiphyService @Inject constructor() {
                                 val stillObject = images.getJSONObject(key)
                                 val staticUrl = stillObject.getString("url")
 
-                                // CRITICAL CHECK: Ensure it's not just linking to a .gif file
-                                if (staticUrl.isNotBlank() && !staticUrl.endsWith(".gif", ignoreCase = true)) {
+                                if (staticUrl.isNotBlank()) {
                                     Log.d("GiphyService", "Found valid STATIC image for '$query' at index $i (key: $key): $staticUrl")
                                     return@withContext staticUrl
-                                } else {
-                                    Log.w("GiphyService", "Skipping result $i ($key) because it's a .gif: $staticUrl")
                                 }
                             }
                         }
                     } catch (e: Exception) {
                         Log.w("GiphyService", "Error processing result $i: ${e.message}")
-                        continue // Try next result
+                        continue
                     }
                 }
 
-                // If no non-gif "still" was found after checking all results
-                Log.e("GiphyService", "No suitable STATIC (non-gif) image found in 10 results for '$query'.")
+                Log.e("GiphyService", "No suitable STATIC image found in 10 results for '$query'.")
                 null
             } else {
                 Log.w("GiphyService", "No results found for query: $query")
