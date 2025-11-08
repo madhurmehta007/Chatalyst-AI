@@ -6,6 +6,7 @@ import com.android.chatalystai.data.model.MessageType
 import com.android.chatalystai.data.model.User
 import com.android.chatalystai.data.remote.AiService
 import com.android.chatalystai.data.remote.GiphyService
+import com.android.chatalystai.data.remote.GoogleImageService
 import com.android.chatalystai.data.repository.ConversationRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -23,6 +24,7 @@ import kotlin.random.Random
 class GroupChatService(
     private val conversationRepository: ConversationRepository,
     private val aiService: AiService,
+    private val googleImageService: GoogleImageService,
     private val giphyService: GiphyService
 ) {
     private val _users = MutableStateFlow<List<User>>(emptyList())
@@ -188,7 +190,12 @@ class GroupChatService(
                                         "GroupChatService",
                                         "AI requested image for query: '$searchQuery'"
                                     )
-                                    val imageUrl = giphyService.searchGif(searchQuery)
+                                    var imageUrl = googleImageService.searchImage(searchQuery)
+                                    if (imageUrl.isNullOrBlank()) {
+                                        Log.w("GroupChatService", "Google Image Search failed for '$searchQuery'. Trying Giphy fallback.")
+                                        imageUrl = giphyService.searchGif(searchQuery)
+                                    }
+
                                     if (imageUrl != null) {
                                         val imageMessage = Message(
                                             id = UUID.randomUUID().toString(),
@@ -203,9 +210,9 @@ class GroupChatService(
                                             imageMessage
                                         )
                                     } else {
-                                        Log.w(
+                                        Log.e( // *** MODIFIED: Changed from 'w' to 'e' ***
                                             "GroupChatService",
-                                            "Giphy returned no URL for '$searchQuery'"
+                                            "All image services (Google, Giphy) failed for '$searchQuery'"
                                         )
                                     }
                                 }

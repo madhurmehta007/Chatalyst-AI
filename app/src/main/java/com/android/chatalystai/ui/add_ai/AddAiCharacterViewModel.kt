@@ -1,19 +1,18 @@
-// chatalystai/ui/add_ai/AddAiCharacterViewModel.kt
-
 package com.android.chatalystai.ui.add_ai
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.android.chatalystai.data.model.User
 import com.android.chatalystai.data.remote.AiService
 import com.android.chatalystai.data.remote.GiphyService
+import com.android.chatalystai.data.remote.GoogleImageService
 import com.android.chatalystai.data.repository.ConversationRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import java.net.URLEncoder
 import java.util.UUID
 import javax.inject.Inject
 
@@ -21,6 +20,7 @@ import javax.inject.Inject
 class AddAiCharacterViewModel @Inject constructor(
     private val repository: ConversationRepository,
     private val aiService: AiService,
+    private val googleImageService: GoogleImageService,
     private val giphyService: GiphyService
 ) : ViewModel() {
 
@@ -82,26 +82,32 @@ class AddAiCharacterViewModel @Inject constructor(
                     name.trim().lowercase().replace("\\s+".toRegex(), "_")
                 }_${UUID.randomUUID().toString().substring(0, 4)}"
 
-                val imageUrl = if (imageSearchQuery.isNotBlank()) {
-                    giphyService.searchGif(imageSearchQuery)
-                } else {
-                    null
-                }
+                // *** MODIFICATION: Try Google first, then Giphy ***
+                var imageUrl: String? = null
+                if (imageSearchQuery.isNotBlank()) {
+                    // 1. Try Google first
+                    imageUrl = googleImageService.searchImage(imageSearchQuery)
 
-                // *** MODIFICATION: Removed Dicebear fallback ***
-                // If imageUrl is blank (Giphy search failed or no query), finalAvatarUrl will be null.
+                    // 2. If Google fails, try Giphy as a fallback
+                    if (imageUrl.isNullOrBlank()) {
+                        Log.w("AddAiViewModel", "Google Image Search failed for '$imageSearchQuery'. Trying Giphy fallback.")
+                        imageUrl = giphyService.searchGif(imageSearchQuery)
+                    }
+                }
+                // *** END MODIFICATION ***
+
                 val finalAvatarUrl = if (!imageUrl.isNullOrBlank()) {
                     imageUrl
                 } else {
-                    null // This will store null in Firebase if Giphy fails
+                    Log.e("AddAiViewModel", "All image services (Google, Giphy) failed for '$imageSearchQuery'.")
+                    null // This will store null in Firebase if both fail
                 }
-                // *** END MODIFICATION ***
 
                 val newAiUser = User(
                     uid = aiUid,
                     name = name.trim(),
                     personality = personality.trim(),
-                    avatarUrl = finalAvatarUrl, // Will be null if Giphy failed
+                    avatarUrl = finalAvatarUrl,
                     backgroundStory = background.trim(),
                     interests = interests.trim(),
                     speakingStyle = style.trim()

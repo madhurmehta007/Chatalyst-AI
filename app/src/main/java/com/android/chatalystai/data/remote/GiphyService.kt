@@ -32,7 +32,8 @@ class GiphyService @Inject constructor() {
             val response = client.newCall(Request.Builder().url(gifUrl).build()).execute()
 
             if (!response.isSuccessful) {
-                Log.e("GiphyService", "Giphy API call failed: ${response.message}")
+                val errorBody = response.body?.string() ?: response.message
+                Log.e("GiphyService", "Giphy API call failed: HTTP ${response.code} - $errorBody")
                 return@withContext null
             }
 

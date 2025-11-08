@@ -3,6 +3,7 @@ package com.android.chatalystai
 import android.app.Application
 import com.android.chatalystai.data.remote.AiService
 import com.android.chatalystai.data.remote.GiphyService
+import com.android.chatalystai.data.remote.GoogleImageService
 import com.android.chatalystai.data.repository.OfflineFirstConversationRepository
 import com.android.chatalystai.data.service.GroupChatService
 import com.google.firebase.auth.ktx.auth
@@ -17,6 +18,7 @@ class ChatalystAiApplication : Application() {
 
     @Inject lateinit var repository: OfflineFirstConversationRepository
     @Inject lateinit var aiService: AiService
+    @Inject lateinit var googleImageService: GoogleImageService
     @Inject lateinit var giphyService: GiphyService
     private var groupChatService: GroupChatService? = null
 
@@ -27,7 +29,7 @@ class ChatalystAiApplication : Application() {
             if (auth.currentUser != null) {
                 repository.startSyncing()
                 if (groupChatService == null) {
-                    groupChatService = GroupChatService(repository, aiService, giphyService)
+                    groupChatService = GroupChatService(repository, aiService, googleImageService, giphyService)
                     CoroutineScope(Dispatchers.IO).launch {
                         groupChatService?.start()
                     }

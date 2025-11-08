@@ -33,6 +33,8 @@ android {
         buildConfigField("String", "GEMINI_API_KEY", "\"${localProperties.getProperty("GEMINI_API_KEY")}\"")
         buildConfigField("String", "GIPHY_API_KEY", "\"${localProperties.getProperty("GIPHY_API_KEY")}\"")
         buildConfigField("String", "WEB_CLIENT_ID", "\"${localProperties.getProperty("WEB_CLIENT_ID")}\"")
+        buildConfigField("String", "GOOGLE_CUSTOM_SEARCH_API_KEY", "\"${localProperties.getProperty("GOOGLE_CUSTOM_SEARCH_API_KEY")}\"")
+        buildConfigField("String", "GOOGLE_CUSTOM_SEARCH_ENGINE_ID", "\"${localProperties.getProperty("GOOGLE_CUSTOM_SEARCH_ENGINE_ID")}\"")
     }
 
     buildTypes {

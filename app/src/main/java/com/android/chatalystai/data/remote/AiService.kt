@@ -29,35 +29,39 @@ class AiService @Inject constructor() {
     }
 
     suspend fun generateAiPersona(prompt: String): Map<String, String> = withContext(Dispatchers.IO) {
-        // *** MODIFICATION: Heavily modified system prompt for static images ***
+
+        // *** MODIFICATION: Updated prompt to use the user's new query format ***
         val systemPrompt = """
-You are a creative character writer. A user wants to create a new AI persona based on their prompt.
-Your task is to generate a detailed, realistic character based on this prompt.
+You are a persona-generation bot. Your task is to generate a character persona based **exactly** on the user's prompt.
+
+## CRITICAL RULE 1: OBEY THE PROMPT ##
+-   **IF THE PROMPT IS A SPECIFIC NAME** (e.g., "Sung Jinwoo", "Gojo Satoru"): Your *entire job* is to generate the persona for **that specific character**. All fields (name, personality, background, etc.) MUST be about that character.
+-   **IF THE PROMPT IS A DESCRIPTION** (e.g., "sarcastic hacker"): You must *invent* a new character that matches that description.
+
+**DO NOT invent a new character if the user gave you a specific one.** Failure to follow this rule is a critical error.
+
 You MUST return your response as a single, valid JSON object with the following exact keys:
-"name": A plausible first name for the character.
+"name": The character's name. (This MUST match the user's prompt if they provided one).
 "personality": A short summary of their key personality traits.
 "background": A brief background story (where they live, what they do, etc.).
 "interests": A comma-separated list of interests, likes, and dislikes.
-"style": A description of their speaking style (e.g., "Sarcastic, uses Hinglish", "Formal, uses emojis").
-"imageSearchQuery": A precise search query for finding a STATIC, NON-ANIMATED, STILL portrait image of this character.
+"style": A description of their speaking style.
+"imageSearchQuery": A precise, 4-6 word search query for finding a STATIC, NON-ANIMATED portrait.
 
-## CRITICAL RULES FOR 'imageSearchQuery' ##
-1.  **NO GIFS. NO ANIMATION.** Your primary goal is to find a STATIC IMAGE, like a photo or a drawing.
-2.  **FORBIDDEN WORDS:** The query MUST NOT contain "gif", "animated", "funny", "meme", "action scene", "fighting", "video", "sticker".
-3.  **REQUIRED WORDS:** The query MUST end with "portrait", "static portrait", "character portrait", or "headshot". This is mandatory.
+## CRITICAL RULE 2: IMAGE QUERY RULES ##
+1.  **FORBIDDEN WORDS:** The query MUST NOT contain "gif", "animated", "funny", "meme", "action", "fighting", "video", "sticker", "tiktok", "pinterest".
+2.  **QUERY STRUCTURE:** You MUST use a structure like: (Name) + (A key feature) + (Suffix) + "from" + (Source/Series)
+3.  **REQUIRED SUFFIX:** The query MUST use a suffix like "portrait", "static portrait", or "headshot".
 
-## QUERY FORMAT EXAMPLES ##
--   **ANIME/MANGA:** "Sung Jinwoo Solo Leveling static portrait", "Gojo Satoru Jujutsu Kaisen headshot", "Tanjiro Kamado Demon Slayer character portrait"
--   **REAL PEOPLE:** "Emma Watson portrait", "Elon Musk headshot"
--   **GENERIC:** "female warrior character portrait", "young male scientist static portrait", "cyberpunk hacker headshot"
+## FINAL QUERY EXAMPLES (SHORT & ACCURATE) ##
+-   "Sung Jinwoo portrait from Solo Leveling"
+-   "Gojo Satoru white hair portrait from Jujutsu Kaisen"
+-   "Tanjiro Kamado official art from Demon Slayer"
+-   "Emma Watson headshot"
+-   "female hacker pink hair static portrait"
+-   "cyberpunk man neon glasses character portrait"
 
-## PRIORITY ORDER ##
-1.  If known character → Use exact character name + series name + "static portrait"
-2.  If real person → Use full name + "portrait"
-3.  If generic → Use detailed physical description + "character portrait"
-
-Do not include any other text, explanations, or markdown formatting outside of the single JSON object.
-Your output MUST be only the JSON.
+Your output MUST be only the single, valid JSON object.
 """.trimIndent()
         // *** END MODIFICATION ***
 
@@ -202,7 +206,7 @@ $personaDescription
                 } else {
                     val speakerRole = if (msg.senderId == speakingAiUid) "model" else "user"
                     val prefix = if (speakerRole == "user") "$senderName: " else ""
-                    content(speakerRole) { text("$prefix${msg.content}") }
+                    content(role = speakerRole) { text("$prefix${msg.content}") }
                 }
             }
 
