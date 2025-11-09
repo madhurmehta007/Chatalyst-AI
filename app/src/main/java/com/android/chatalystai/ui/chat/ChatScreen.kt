@@ -8,6 +8,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable // *** ADDED IMPORT ***
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -94,6 +95,7 @@ fun ChatScreen(
     onEmojiReact: (String, String) -> Unit,
     onEditMessage: (String, String) -> Unit,
     onNavigateToEditGroup: () -> Unit,
+    onNavigateToAiProfile: (String) -> Unit, // *** ADDED ***
     onDeleteMessages: (List<String>) -> Unit,
     onMuteConversation: (Long) -> Unit,
     onClearChat: () -> Unit,
@@ -199,6 +201,7 @@ fun ChatScreen(
                         typingUsers = typingUsers,
                         onBack = onBack,
                         onNavigateToEditGroup = onNavigateToEditGroup,
+                        onNavigateToAiProfile = onNavigateToAiProfile, // *** PASSED DOWN ***
                         onShowDeleteGroupDialog = { showDeleteGroupDialog = true },
                         onShowClearChatDialog = { showClearChatDialog = true },
                         onShowMuteDialog = { showMuteDialog = true },
@@ -409,6 +412,7 @@ private fun NormalTopBar(
     currentUserId: String?,
     typingUsers: List<User>,
     onNavigateToEditGroup: () -> Unit,
+    onNavigateToAiProfile: (String) -> Unit, // *** ADDED ***
     onBack: () -> Unit,
     onShowDeleteGroupDialog: () -> Unit,
     onShowClearChatDialog: () -> Unit,
@@ -421,15 +425,20 @@ private fun NormalTopBar(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 val displayName: String
                 val avatarUrl: String
+                val otherUserId: String?
+                val otherUser: User?
+
                 if (conversation.group) {
                     displayName = conversation.name
                     avatarUrl = "https://ui-avatars.com/api/?name=${
                         conversation.name.replace(" ", "+")
                     }&background=random"
+                    otherUser = null
+                    otherUserId = null
                 } else {
-                    val otherUserId =
+                    otherUserId =
                         conversation.participants.keys.firstOrNull { it != currentUserId }
-                    val otherUser = usersById[otherUserId]
+                    otherUser = usersById[otherUserId]
 
                     displayName = otherUser?.name ?: "Unknown"
                     avatarUrl =
@@ -437,46 +446,57 @@ private fun NormalTopBar(
                             ?: "https.api.dicebear.com/7.x/avataaars/avif?seed=?"
                 }
 
-                AsyncImage(
-                    model = avatarUrl,
-                    contentDescription = "Profile Picture",
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(CircleShape)
-                )
-
-                Spacer(Modifier.width(12.dp))
-
-                Column {
-                    Text(
-                        text = displayName,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                // *** MODIFICATION: Added clickable modifier for AI profiles ***
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.clickable(
+                        enabled = otherUser != null && otherUser.uid.startsWith("ai_"),
+                        onClick = {
+                            otherUser?.uid?.let { onNavigateToAiProfile(it) }
+                        }
+                    )
+                ) {
+                    AsyncImage(
+                        model = avatarUrl,
+                        contentDescription = "Profile Picture",
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
                     )
 
-                    val typingText = when {
-                        typingUsers.isNotEmpty() -> {
-                            if (typingUsers.size > 2) "several people are typing..."
-                            else typingUsers.joinToString(separator = " and ") { it.name } + if (typingUsers.size == 1) " is typing..." else " are typing..."
+                    Spacer(Modifier.width(12.dp))
+
+                    Column {
+                        Text(
+                            text = displayName,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+
+                        val typingText = when {
+                            typingUsers.isNotEmpty() -> {
+                                if (typingUsers.size > 2) "several people are typing..."
+                                else typingUsers.joinToString(separator = " and ") { it.name } + if (typingUsers.size == 1) " is typing..." else " are typing..."
+                            }
+
+                            conversation.group -> "${conversation.participants.size} members"
+                            else -> "Online"
                         }
 
-                        conversation.group -> "${conversation.participants.size} members"
-                        else -> "Online"
-                    }
+                        val typingColor = if (typingUsers.isNotEmpty()) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            Color.Gray
+                        }
 
-                    val typingColor = if (typingUsers.isNotEmpty()) {
-                        MaterialTheme.colorScheme.primary
-                    } else {
-                        Color.Gray
+                        Text(
+                            text = typingText,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = typingColor,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     }
-
-                    Text(
-                        text = typingText,
-                        style = MaterialTheme.typography.labelMedium,
-                        color = typingColor,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
                 }
             }
         },

@@ -71,18 +71,18 @@ import kotlinx.coroutines.launch
 @Composable
 fun ProfileScreen(
     user: User?,
-    onSaveName: (String) -> Unit, // Renamed
+    onSaveName: (String) -> Unit,
     onSaveBio: (String) -> Unit,
     onLogoutClick: () -> Unit,
     onUpgradeClick: () -> Unit,
-    onUpdateAvatar: (Uri) -> Unit, // Added
-    onUpdateAvatarUrl: (String) -> Unit, // Added
+    onUpdateAvatar: (Uri) -> Unit,
+    onUpdateAvatarUrl: (String) -> Unit,
+    onViewAvatar: (String) -> Unit, // *** ADDED ***
     modifier: Modifier = Modifier
 ) {
     var name by remember(user) { mutableStateOf(user?.name ?: "") }
     var bio by remember(user) { mutableStateOf(user?.bio ?: "") }
 
-    // *** MODIFICATION: Use the resolveAvatarUrl with timestamp ***
     val avatarUrl by remember(user?.avatarUrl, user?.avatarUploadTimestamp) {
         mutableStateOf(user?.resolveAvatarUrl() ?: "https://ui-avatars.com/api/?name=?")
     }
@@ -95,7 +95,6 @@ fun ProfileScreen(
     var showEditBioDialog by remember { mutableStateOf(false) }
     var showLogoutDialog by remember { mutableStateOf(false) }
 
-    // *** MODIFICATION: State for Avatar Bottom Sheet ***
     var showAvatarOptions by remember { mutableStateOf(false) }
     val bottomSheetState = rememberModalBottomSheetState()
 
@@ -129,21 +128,32 @@ fun ProfileScreen(
                     .clip(CircleShape)
                     .border(2.dp, MaterialTheme.colorScheme.primary, CircleShape)
                     .background(MaterialTheme.colorScheme.surfaceVariant)
-                    .clickable { showAvatarOptions = true }, // *** MODIFICATION: Make clickable ***
+                    .clickable {
+                        if (avatarUrl.isNotBlank()) {
+                            onViewAvatar(avatarUrl)
+                        }
+                    }, // *** MODIFICATION: Click to view ***
                 contentScale = ContentScale.Crop,
                 placeholder = rememberVectorPainter(Icons.Filled.Person),
                 error = rememberVectorPainter(Icons.Filled.Person)
             )
-            Icon(
-                imageVector = Icons.Default.Edit,
-                contentDescription = "Edit Avatar",
+            // *** MODIFICATION: Click edit icon to show options ***
+            Box(
                 modifier = Modifier
                     .size(30.dp)
                     .clip(CircleShape)
                     .background(MaterialTheme.colorScheme.secondary)
+                    .clickable { showAvatarOptions = true }
                     .padding(6.dp),
-                tint = MaterialTheme.colorScheme.onSecondary
-            )
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Edit,
+                    contentDescription = "Edit Avatar",
+                    modifier = Modifier.size(18.dp),
+                    tint = MaterialTheme.colorScheme.onSecondary
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(32.dp))
@@ -241,7 +251,7 @@ fun ProfileScreen(
             confirmButton = {
                 Button(
                     onClick = {
-                        onSaveName(name) // Use renamed prop
+                        onSaveName(name)
                         Toast.makeText(context, "Profile Saved!", Toast.LENGTH_SHORT).show()
                         showEditNameDialog = false
                     }
@@ -255,7 +265,7 @@ fun ProfileScreen(
             }
         )
     }
-    // ... (EditBioDialog and LogoutDialog remain the same) ...
+
     if (showEditBioDialog) {
         AlertDialog(
             onDismissRequest = { showEditBioDialog = false },
@@ -307,7 +317,6 @@ fun ProfileScreen(
         )
     }
 
-    // *** MODIFICATION: Add Avatar Bottom Sheet ***
     if (showAvatarOptions) {
         ProfilePictureOptionsSheet(
             onDismiss = { showAvatarOptions = false },
@@ -374,7 +383,7 @@ private fun ProfileListItem(
 }
 
 
-// *** MODIFICATION: New Bottom Sheet Composable ***
+// ... (ProfilePictureOptionsSheet composable remains unchanged) ...
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ProfilePictureOptionsSheet(
@@ -418,7 +427,7 @@ private fun ProfilePictureOptionsSheet(
                 subtitle = "Upload your own photo",
                 onClick = onPickFromGallery
             )
-            Divider(modifier = Modifier.padding(horizontal = 16.dp))
+            Spacer(modifier = Modifier.padding(horizontal = 16.dp))
 
             // Option 2: Suggestions
             Text(

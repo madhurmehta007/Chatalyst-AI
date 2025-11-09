@@ -22,9 +22,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.android.chatalystai.data.repository.FirebaseConversationRepository
 import com.android.chatalystai.ui.add_ai.AddAiCharacterScreen
 import com.android.chatalystai.ui.add_ai.AddAiCharacterViewModel
@@ -33,6 +35,7 @@ import com.android.chatalystai.ui.auth.AuthState
 import com.android.chatalystai.ui.auth.AuthViewModel
 import com.android.chatalystai.ui.chat.ChatScreen
 import com.android.chatalystai.ui.chat.ChatViewModel
+import com.android.chatalystai.ui.common.FullScreenImageViewer // *** ADDED IMPORT ***
 import com.android.chatalystai.ui.creategroup.CreateGroupScreen
 import com.android.chatalystai.ui.creategroup.CreateGroupViewModel
 import com.android.chatalystai.ui.edit_group.EditGroupScreen
@@ -41,9 +44,11 @@ import com.android.chatalystai.ui.main.MainViewModel
 import com.android.chatalystai.ui.newchat.NewChatScreen
 import com.android.chatalystai.ui.newchat.NewChatViewModel
 import com.android.chatalystai.ui.premium.PremiumScreen
+import com.android.chatalystai.ui.profile.AiProfileScreen
 import com.android.chatalystai.ui.profile.ProfileScreen
 import com.android.chatalystai.ui.splash.SplashScreen
 import kotlinx.coroutines.delay
+import java.net.URLEncoder // *** ADDED IMPORT ***
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -109,16 +114,45 @@ fun AppNavigation() {
                         ) { paddingValues ->
                             ProfileScreen(
                                 user = user,
-                                onSaveName = { newName -> authViewModel.updateUserName(newName) }, // Renamed
+                                onSaveName = { newName -> authViewModel.updateUserName(newName) },
                                 onSaveBio = { newBio -> authViewModel.updateUserBio(newBio) },
                                 onLogoutClick = { authViewModel.logout() },
                                 onUpgradeClick = { navController.navigate("premium") },
                                 onUpdateAvatar = { uri -> authViewModel.updateUserAvatar(uri) },
                                 onUpdateAvatarUrl = { url -> authViewModel.updateUserAvatarFromUrl(url) },
+                                // *** MODIFICATION: Pass lambda for avatar click ***
+                                onViewAvatar = { url ->
+                                    val encodedUrl = URLEncoder.encode(url, "UTF-8")
+                                    navController.navigate("full_screen_image?url=$encodedUrl")
+                                },
                                 modifier = Modifier.padding(paddingValues)
                             )
                         }
                     }
+
+                    composable("ai_profile/{userId}") {
+                        AiProfileScreen(
+                            onBack = { navController.popBackStack() },
+                            // *** MODIFICATION: Pass lambda for avatar click ***
+                            onViewAvatar = { url ->
+                                val encodedUrl = URLEncoder.encode(url, "UTF-8")
+                                navController.navigate("full_screen_image?url=$encodedUrl")
+                            }
+                        )
+                    }
+
+                    // *** ADDED: New Route for Full Screen Image Viewer ***
+                    composable(
+                        "full_screen_image?url={url}",
+                        arguments = listOf(navArgument("url") { type = NavType.StringType; nullable = true })
+                    ) { backStackEntry ->
+                        val imageUrl = backStackEntry.arguments?.getString("url")
+                        FullScreenImageViewer(
+                            imageUrl = imageUrl,
+                            onBack = { navController.popBackStack() }
+                        )
+                    }
+
 
                     composable("new_chat") {
                         val newChatViewModel: NewChatViewModel = hiltViewModel()
@@ -254,6 +288,9 @@ fun AppNavigation() {
 
                                 onNavigateToEditGroup = {
                                     navController.navigate("edit_group/$conversationId")
+                                },
+                                onNavigateToAiProfile = { userId ->
+                                    navController.navigate("ai_profile/$userId")
                                 },
                                 onDeleteGroup = {
                                     chatViewModel.deleteGroup(conversationId)

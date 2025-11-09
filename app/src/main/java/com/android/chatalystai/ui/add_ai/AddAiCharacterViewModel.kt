@@ -5,7 +5,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.android.chatalystai.data.model.User
 import com.android.chatalystai.data.remote.AiService
-import com.android.chatalystai.data.remote.GiphyService
 import com.android.chatalystai.data.remote.GoogleImageService
 import com.android.chatalystai.data.repository.ConversationRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -20,8 +19,7 @@ import javax.inject.Inject
 class AddAiCharacterViewModel @Inject constructor(
     private val repository: ConversationRepository,
     private val aiService: AiService,
-    private val googleImageService: GoogleImageService,
-    private val giphyService: GiphyService
+    private val googleImageService: GoogleImageService
 ) : ViewModel() {
 
     private val _isLoading = MutableStateFlow(false)
@@ -82,25 +80,27 @@ class AddAiCharacterViewModel @Inject constructor(
                     name.trim().lowercase().replace("\\s+".toRegex(), "_")
                 }_${UUID.randomUUID().toString().substring(0, 4)}"
 
-                // *** MODIFICATION: Try Google first, then Giphy ***
+                // Use only Google Image Search (removed Giphy as it's not suitable for profile images)
                 var imageUrl: String? = null
                 if (imageSearchQuery.isNotBlank()) {
-                    // 1. Try Google first
+                    Log.d("AddAiViewModel", "Searching for image with query: '$imageSearchQuery'")
                     imageUrl = googleImageService.searchImage(imageSearchQuery)
 
-                    // 2. If Google fails, try Giphy as a fallback
                     if (imageUrl.isNullOrBlank()) {
-                        Log.w("AddAiViewModel", "Google Image Search failed for '$imageSearchQuery'. Trying Giphy fallback.")
-                        imageUrl = giphyService.searchGif(imageSearchQuery)
+                        Log.w("AddAiViewModel", "Google Image Search failed for '$imageSearchQuery'")
+                        // Try with a simplified query as fallback
+                        val simplifiedQuery = "$name portrait"
+                        Log.d("AddAiViewModel", "Trying simplified query: '$simplifiedQuery'")
+                        imageUrl = googleImageService.searchImage(simplifiedQuery)
                     }
                 }
-                // *** END MODIFICATION ***
 
                 val finalAvatarUrl = if (!imageUrl.isNullOrBlank()) {
+                    Log.d("AddAiViewModel", "Successfully found image: $imageUrl")
                     imageUrl
                 } else {
-                    Log.e("AddAiViewModel", "All image services (Google, Giphy) failed for '$imageSearchQuery'.")
-                    null // This will store null in Firebase if both fail
+                    Log.e("AddAiViewModel", "Image search failed for '$imageSearchQuery'. Character will be created without an avatar.")
+                    null // Character will be created without an avatar
                 }
 
                 val newAiUser = User(
@@ -117,11 +117,11 @@ class AddAiCharacterViewModel @Inject constructor(
                 _addSuccess.value = true
 
             } catch (e: Exception) {
+                Log.e("AddAiViewModel", "Error saving AI character", e)
                 _errorMessage.value = "An error occurred: ${e.message}"
             } finally {
                 _isLoading.value = false
             }
-
         }
     }
 

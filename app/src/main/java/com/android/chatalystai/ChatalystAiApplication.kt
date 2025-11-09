@@ -1,6 +1,8 @@
 package com.android.chatalystai
 
+import android.app.Activity
 import android.app.Application
+import android.os.Bundle
 import com.android.chatalystai.data.remote.AiService
 import com.android.chatalystai.data.remote.GiphyService
 import com.android.chatalystai.data.remote.GoogleImageService
@@ -13,8 +15,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+
 @HiltAndroidApp
-class ChatalystAiApplication : Application() {
+class ChatalystAiApplication : Application(), Application.ActivityLifecycleCallbacks {
 
     @Inject lateinit var repository: OfflineFirstConversationRepository
     @Inject lateinit var aiService: AiService
@@ -22,8 +25,14 @@ class ChatalystAiApplication : Application() {
     @Inject lateinit var giphyService: GiphyService
     private var groupChatService: GroupChatService? = null
 
+    companion object {
+        @Volatile
+        var isAppInForeground: Boolean = false
+    }
+
     override fun onCreate() {
         super.onCreate()
+        registerActivityLifecycleCallbacks(this) // Register the callbacks
 
         Firebase.auth.addAuthStateListener { auth ->
             if (auth.currentUser != null) {
@@ -41,4 +50,25 @@ class ChatalystAiApplication : Application() {
             }
         }
     }
+
+
+    override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {}
+
+    override fun onActivityStarted(activity: Activity) {
+        isAppInForeground = true
+    }
+
+    override fun onActivityResumed(activity: Activity) {
+        isAppInForeground = true
+    }
+
+    override fun onActivityPaused(activity: Activity) {}
+
+    override fun onActivityStopped(activity: Activity) {
+        isAppInForeground = false
+    }
+
+    override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) {}
+
+    override fun onActivityDestroyed(activity: Activity) {}
 }

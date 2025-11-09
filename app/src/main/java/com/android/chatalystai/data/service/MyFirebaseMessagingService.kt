@@ -8,6 +8,7 @@ import android.content.Intent
 import android.os.Build
 import android.util.Log // Import
 import androidx.core.app.NotificationCompat
+import com.android.chatalystai.ChatalystAiApplication // *** ADDED IMPORT ***
 import com.android.chatalystai.MainActivity
 import com.android.chatalystai.R
 import com.android.chatalystai.data.local.ConversationDao // Import
@@ -26,6 +27,12 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
 
     override fun onMessageReceived(remoteMessage: RemoteMessage) {
         super.onMessageReceived(remoteMessage)
+
+        // *** MODIFICATION: Suppress notification if app is in the foreground ***
+        if (ChatalystAiApplication.isAppInForeground) {
+            Log.d("FCMService", "App is in foreground, suppressing notification.")
+            return
+        }
 
         val data = remoteMessage.data
         val title = data["title"] ?: "New Message"

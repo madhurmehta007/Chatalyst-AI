@@ -30,12 +30,11 @@ class AiService @Inject constructor() {
 
     suspend fun generateAiPersona(prompt: String): Map<String, String> = withContext(Dispatchers.IO) {
 
-        // *** MODIFICATION: Updated prompt to use the user's new query format ***
         val systemPrompt = """
 You are a persona-generation bot. Your task is to generate a character persona based **exactly** on the user's prompt.
 
 ## CRITICAL RULE 1: OBEY THE PROMPT ##
--   **IF THE PROMPT IS A SPECIFIC NAME** (e.g., "Sung Jinwoo", "Gojo Satoru"): Your *entire job* is to generate the persona for **that specific character**. All fields (name, personality, background, etc.) MUST be about that character.
+-   **IF THE PROMPT IS A SPECIFIC NAME** (e.g., "Sung Jinwoo", "Gojo Satoru", "Tony Stark"): Your *entire job* is to generate the persona for **that specific character**. All fields (name, personality, background, etc.) MUST be about that character.
 -   **IF THE PROMPT IS A DESCRIPTION** (e.g., "sarcastic hacker"): You must *invent* a new character that matches that description.
 
 **DO NOT invent a new character if the user gave you a specific one.** Failure to follow this rule is a critical error.
@@ -46,24 +45,60 @@ You MUST return your response as a single, valid JSON object with the following 
 "background": A brief background story (where they live, what they do, etc.).
 "interests": A comma-separated list of interests, likes, and dislikes.
 "style": A description of their speaking style.
-"imageSearchQuery": A precise, 4-6 word search query for finding a STATIC, NON-ANIMATED portrait.
+"imageSearchQuery": A precise search query for finding a high-quality profile image.
 
 ## CRITICAL RULE 2: IMAGE QUERY RULES ##
-1.  **FORBIDDEN WORDS:** The query MUST NOT contain "gif", "animated", "funny", "meme", "action", "fighting", "video", "sticker", "tiktok", "pinterest".
-2.  **QUERY STRUCTURE:** You MUST use a structure like: (Name) + (A key feature) + (Suffix) + "from" + (Source/Series)
-3.  **REQUIRED SUFFIX:** The query MUST use a suffix like "portrait", "static portrait", or "headshot".
+The imageSearchQuery is THE MOST IMPORTANT field. It must be extremely precise to get the correct image from Google Image Search.
 
-## FINAL QUERY EXAMPLES (SHORT & ACCURATE) ##
--   "Sung Jinwoo portrait from Solo Leveling"
--   "Gojo Satoru white hair portrait from Jujutsu Kaisen"
--   "Tanjiro Kamado official art from Demon Slayer"
--   "Emma Watson headshot"
--   "female hacker pink hair static portrait"
--   "cyberpunk man neon glasses character portrait"
+### For Known Characters (Anime, Movies, TV, Games, Celebrities):
+**FORMAT:** "[Character Full Name] [distinctive feature] aesthetic [source/series name] official art"
+**EXAMPLES:**
+- "Sung Jinwoo black hair aesthetic Solo Leveling official art"
+- "Gojo Satoru white hair aesthetic Jujutsu Kaisen official art"
+- "Tony Stark Iron Man aesthetic Marvel official art"
+- "Tanjiro Kamado checkered haori aesthetic Demon Slayer official art"
+- "Naruto Uzumaki blonde hair aesthetic Naruto anime official art"
+- "Luffy straw hat aesthetic One Piece official art"
+- "Spider-Man Tom Holland aesthetic Marvel cinematic"
+- "Cristiano Ronaldo aesthetic professional portrait"
+- "Elon Musk aesthetic professional headshot"
+
+### For Original/Custom Characters:
+**FORMAT:** "[profession/role] [distinctive features] aesthetic portrait professional"
+**EXAMPLES:**
+- "female hacker pink hair aesthetic cyberpunk portrait"
+- "male software developer glasses aesthetic casual portrait"
+- "businesswoman suit aesthetic professional headshot"
+- "young artist paint splatter aesthetic portrait"
+- "gamer headset rgb lights aesthetic portrait"
+
+### CRITICAL RULES:
+1. **ALWAYS ADD "AESTHETIC"**: This keyword is MANDATORY for high-quality, visually appealing images
+2. **BE SPECIFIC**: Include distinguishing visual features (hair color, clothing, accessories)
+3. **ADD SOURCE**: For known characters, ALWAYS include the anime/movie/game/series name + "official art"
+4. **USE FULL NAMES**: "Sung Jinwoo" not "Jinwoo", "Gojo Satoru" not "Gojo"
+5. **AVOID GENERIC TERMS**: Don't use "anime character" or "cool guy" alone
+6. **NO ACTION WORDS**: Avoid "fighting", "battle", "running" - focus on portraits
+7. **CHARACTER-SPECIFIC**: If it's Gojo, mention "white hair blindfold" or "blue eyes"
+8. **"OFFICIAL ART" FOR ANIME/GAMES**: This ensures high-quality character art from the actual series
+
+### Bad vs Good Examples:
+❌ BAD: "anime character"
+✅ GOOD: "Levi Ackerman black hair aesthetic Survey Corps Attack on Titan official art"
+
+❌ BAD: "hacker"
+✅ GOOD: "cyberpunk hacker neon green visor aesthetic portrait"
+
+❌ BAD: "Iron Man"
+✅ GOOD: "Tony Stark Iron Man suit aesthetic Marvel official art"
+
+❌ BAD: "Gojo Satoru"
+✅ GOOD: "Gojo Satoru white hair aesthetic Jujutsu Kaisen official art"
+
+Your imageSearchQuery should be 5-10 words and must include "aesthetic" for visually appealing results.
 
 Your output MUST be only the single, valid JSON object.
 """.trimIndent()
-        // *** END MODIFICATION ***
 
         val generativeModel = GenerativeModel(
             modelName = "gemini-2.5-flash",
@@ -109,13 +144,11 @@ Your output MUST be only the single, valid JSON object.
 
         } catch (e: Exception) {
             Log.e("AiService", "Error generating persona: ${e.message}", e)
-            emptyMap() // Return empty on error
+            emptyMap()
         }
     }
 
     suspend fun getResponse(chatHistory: List<Message>): String = withContext(Dispatchers.IO) {
-        // This function is now only for the legacy 1-on-1 chat, which we are replacing.
-        // But we leave it here in case it's used elsewhere.
         val systemPrompt = "You are a helpful chat assistant. Do not use markdown formatting like asterisks."
         val model = GenerativeModel(
             modelName = "gemini-2.5-flash",
@@ -136,7 +169,6 @@ Your output MUST be only the single, valid JSON object.
         }
     }
 
-    // *** MODIFICATION: Renamed from generateGroupResponse to generateCharacterResponse ***
     suspend fun generateCharacterResponse(
         history: List<Message>,
         speakingAiUid: String,
@@ -149,8 +181,6 @@ Your output MUST be only the single, valid JSON object.
             return@withContext "Error: My configuration is missing."
         }
         val speakingAiName = speakingAiUser.name
-
-        // *** MODIFICATION: New, much more aggressive prompt ***
 
         val personaDescription = """
 ---
@@ -172,7 +202,6 @@ Your "knowledge" is this character's knowledge. If the character is from a known
         val memberNames = allUsersInChat.joinToString { it.name }
         val topicInfo = if(topic.isNotBlank()) topic else "a casual chat."
 
-        // *** MODIFICATION: Updated system prompt for accuracy and anti-AI response ***
         val systemPrompt = """
 $personaDescription
 
@@ -192,7 +221,6 @@ $personaDescription
 8.  **NO MARKDOWN:** Do NOT use markdown like **bold** or *italics*. Plain text only.
 9.  **NO PREFIX:** Do NOT start your response with "$speakingAiName:".
 """.trimIndent()
-
 
         val usersById = allUsersInChat.associateBy { it.uid }
         val historyContent = history
