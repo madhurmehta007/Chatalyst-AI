@@ -20,7 +20,7 @@ object ThemeHelper {
      */
     fun isDarkTheme(context: Context): Flow<Boolean> {
         return context.dataStore.data.map { preferences ->
-            preferences[IS_DARK_MODE] ?: false // Default to false (light mode)
+            preferences[IS_DARK_MODE] ?: false
         }
     }
 
@@ -30,6 +30,12 @@ object ThemeHelper {
     suspend fun setDarkTheme(context: Context, isDark: Boolean) {
         context.dataStore.edit { settings ->
             settings[IS_DARK_MODE] = isDark
+        }
+    }
+
+    suspend fun clearSettings(context: Context) {
+        context.dataStore.edit { settings ->
+            settings.clear()
         }
     }
 }

@@ -19,7 +19,8 @@ data class User(
     val fcmToken: String = "",
     val bio: String = "",
     val premium: Boolean = false,
-    val avatarUploadTimestamp: Long = 0L
+    val avatarUploadTimestamp: Long = 0L,
+    val creatorId: String? = null
 ) {
     fun resolveAvatarUrl(): String {
         if (avatarUrl.isNullOrBlank()) {

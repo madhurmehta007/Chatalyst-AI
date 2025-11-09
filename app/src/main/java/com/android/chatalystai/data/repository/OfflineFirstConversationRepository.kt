@@ -582,7 +582,8 @@ class OfflineFirstConversationRepository @Inject constructor(
         backgroundStory, interests, speakingStyle,
         isOnline, lastSeen,fcmToken,
         bio,premium,
-        avatarUploadTimestamp
+        avatarUploadTimestamp,
+        creatorId
     )
 
     private fun UserEntity.toModel() = User(
@@ -590,7 +591,8 @@ class OfflineFirstConversationRepository @Inject constructor(
         backgroundStory, interests, speakingStyle,
         isOnline, lastSeen,fcmToken,
         bio,isPremium,
-        avatarUploadTimestamp
+        avatarUploadTimestamp,
+        creatorId
     )
 
     private fun Conversation.toEntity() = ConversationEntity(

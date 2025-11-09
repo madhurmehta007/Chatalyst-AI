@@ -12,6 +12,7 @@ import androidx.lifecycle.viewModelScope
 import com.android.chatalystai.BuildConfig
 import com.android.chatalystai.data.model.User
 import com.android.chatalystai.data.repository.ConversationRepository
+import com.android.chatalystai.ui.theme.ThemeHelper
 import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.firebase.auth.FirebaseAuth
@@ -27,6 +28,7 @@ import com.google.firebase.ktx.Firebase
 import com.google.firebase.messaging.FirebaseMessaging
 import com.google.firebase.storage.FirebaseStorage
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -60,7 +62,8 @@ enum class AuthState {
 @HiltViewModel
 class AuthViewModel @Inject constructor(
     private val repository: ConversationRepository,
-    private val storage: FirebaseStorage
+    private val storage: FirebaseStorage,
+    @ApplicationContext private val context: Context
 ) : ViewModel() {
 
     private val auth: FirebaseAuth = Firebase.auth
@@ -288,6 +291,7 @@ class AuthViewModel @Inject constructor(
     fun logout() {
         viewModelScope.launch {
             repository.clearAllLocalData()
+            ThemeHelper.clearSettings(context)
             auth.signOut()
         }
     }

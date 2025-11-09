@@ -20,7 +20,8 @@ data class UserEntity(
     val fcmToken: String = "",
     val bio: String = "",
     val isPremium: Boolean = false,
-    val avatarUploadTimestamp: Long = 0L
+    val avatarUploadTimestamp: Long = 0L,
+    val creatorId: String? = null
 )
 
 @Entity(tableName = "conversations")

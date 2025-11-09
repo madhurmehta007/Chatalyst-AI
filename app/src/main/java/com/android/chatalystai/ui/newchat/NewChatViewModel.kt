@@ -47,7 +47,11 @@ class NewChatViewModel @Inject constructor(private val repository: ConversationR
 
     val customAiCharacters: StateFlow<List<User>> = allOtherUsers
         .map { users ->
-            users.filter { it.uid.startsWith("ai_") && it.uid !in PREMADE_AI_IDS }
+            users.filter {
+                it.uid.startsWith("ai_") &&
+                        it.uid !in PREMADE_AI_IDS &&
+                        it.creatorId == currentUserId
+            }
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
@@ -91,7 +95,6 @@ class NewChatViewModel @Inject constructor(private val repository: ConversationR
         }
     }
 
-    // *** MODIFIED: Renamed and updated to handle a list ***
     fun deleteAiCharacters(userIds: List<String>) {
         viewModelScope.launch {
             val conversations = repository.getConversations()

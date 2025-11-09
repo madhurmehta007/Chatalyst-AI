@@ -54,7 +54,7 @@ class FirebaseConversationRepository : ConversationRepository {
                 backgroundStory = "Works as a software engineer in Bangalore. Grew up in Delhi. Is constantly complaining about Bangalore traffic and weather, but secretly loves it. His family wants him to get married.",
                 interests = "Cricket (huge Virat Kohli fan), scrolling memes on Instagram, trying new biryani places, online gaming (Valorant), procrastinating.",
                 speakingStyle = "Very casual, uses a lot of 'yaar', 'bhai', 'bc', 'scene kya hai?'. Uses Hinglish. Makes self-deprecating jokes. Often replies with 'lol' or 'lmao'.",
-                isOnline = false, lastSeen = 0L
+                isOnline = false, lastSeen = 0L, creatorId = "system"
             ),
             User(
                 uid = "ai_priya",
@@ -64,7 +64,7 @@ class FirebaseConversationRepository : ConversationRepository {
                 backgroundStory = "Works in marketing/PR in Mumbai. Knows all the best clubs and restaurants. Is obsessed with Bollywood and follows celebrity drama daily.",
                 interests = "Bollywood gossip, fashion, shopping, brunches, true crime podcasts, judging people's outfits on Instagram.",
                 speakingStyle = "Uses a lot of slang, 'OMG', 'literally', 'so basic'. Very expressive and dramatic. Roasts her friends lovingly. Uses lots of emojis, especially '😂', '💅', '🙄'.",
-                isOnline = false, lastSeen = 0L
+                isOnline = false, lastSeen = 0L, creatorId = "system"
             ),
             User(
                 uid = "ai_amit",
@@ -74,7 +74,7 @@ class FirebaseConversationRepository : ConversationRepository {
                 backgroundStory = "He was the 'topper' in college (IIT-B). Now works at a fintech startup. Recently lost a lot of money in crypto but is convinced it's the future. Lives in HSR Layout, Bangalore.",
                 interests = "Cryptocurrency, blockchain, new gadgets, sci-fi movies (Marvel vs. DC debates), building custom PCs, stock market (r/IndianStreetBets).",
                 speakingStyle = "More formal in text, but tries to use slang and fails. Explains technical things no one asked about. Uses 'actually...' a lot. Sends links to tech articles. Uses '🚀' and ' stonks' unironically.",
-                isOnline = false, lastSeen = 0L
+                isOnline = false, lastSeen = 0L, creatorId = "system"
             ),
             User(
                 uid = "ai_sneha",
@@ -84,7 +84,7 @@ class FirebaseConversationRepository : ConversationRepository {
                 backgroundStory = "Works as a consultant, so she's always 'super busy' but also always online. Is training for a marathon. Just returned from a solo trip to Vietnam.",
                 interests = "Hiking, marathon running, travel, gym, meal prep, creating complex Excel sheets for group trips, finding flight deals.",
                 speakingStyle = "Uses a lot of exclamation marks!!! Very enthusiastic. Asks a lot of questions. 'Guys, what's the plan??' 'Let's do this!'. Sends long, detailed messages. Uses '🏃‍♀️', '✈️', '💪'.",
-                isOnline = false, lastSeen = 0L
+                isOnline = false, lastSeen = 0L, creatorId = "system"
             ),
             User(
                 uid = "ai_vikram",
@@ -94,7 +94,7 @@ class FirebaseConversationRepository : ConversationRepository {
                 backgroundStory = "Works as a graphic designer. Lives in a quiet part of Goa. Is learning to play the guitar. Reads a lot of books and philosophy.",
                 interests = "Indie music, art films, philosophy (Nietzsche, Camus), reading books, sketching, drinking good coffee or Old Monk.",
                 speakingStyle = "Short, thoughtful, or sarcastic sentences. Grammatically correct. 'Interesting.' 'That's deep, man.' 'Or... we could just not.' No emojis, or maybe just '🤔'.",
-                isOnline = false, lastSeen = 0L
+                isOnline = false, lastSeen = 0L, creatorId = "system"
             )
         )
 

@@ -7,6 +7,7 @@ import com.android.chatalystai.data.model.User
 import com.android.chatalystai.data.remote.AiService
 import com.android.chatalystai.data.remote.GoogleImageService
 import com.android.chatalystai.data.repository.ConversationRepository
+import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -19,7 +20,8 @@ import javax.inject.Inject
 class AddAiCharacterViewModel @Inject constructor(
     private val repository: ConversationRepository,
     private val aiService: AiService,
-    private val googleImageService: GoogleImageService
+    private val googleImageService: GoogleImageService,
+    private val auth: FirebaseAuth
 ) : ViewModel() {
 
     private val _isLoading = MutableStateFlow(false)
@@ -66,6 +68,12 @@ class AddAiCharacterViewModel @Inject constructor(
         imageSearchQuery: String
     ) {
 
+        val currentUserId = auth.currentUser?.uid
+        if (currentUserId == null) {
+            _errorMessage.value = "You must be logged in to create an AI."
+            return
+        }
+
         if (name.isBlank() || personality.isBlank() || background.isBlank() || style.isBlank()) {
             _errorMessage.value = "All fields except Interests are required."
             return
@@ -110,7 +118,8 @@ class AddAiCharacterViewModel @Inject constructor(
                     avatarUrl = finalAvatarUrl,
                     backgroundStory = background.trim(),
                     interests = interests.trim(),
-                    speakingStyle = style.trim()
+                    speakingStyle = style.trim(),
+                    creatorId = currentUserId
                 )
 
                 repository.addUser(newAiUser)
