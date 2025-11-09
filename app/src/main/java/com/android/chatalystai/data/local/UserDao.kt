@@ -19,6 +19,13 @@ interface UserDao {
 
     @Query("DELETE FROM users")
     suspend fun clearAll()
+
+    @Query("DELETE FROM users WHERE uid = :userId")
+    suspend fun deleteUserById(userId: String)
+
+    // *** ADDED: Query to delete multiple users ***
+    @Query("DELETE FROM users WHERE uid IN (:userIds)")
+    suspend fun deleteUsersByIds(userIds: List<String>)
 }
 
 @Dao

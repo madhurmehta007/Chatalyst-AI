@@ -20,6 +20,7 @@ import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete // *** ADDED IMPORT ***
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
@@ -83,6 +84,7 @@ fun MainScreen(
     val isInSelectionMode = selectedConversationIds.isNotEmpty()
     var showMuteDialog by remember { mutableStateOf(false) }
     var showClearChatDialog by remember { mutableStateOf(false) }
+    var showDeleteChatDialog by remember { mutableStateOf(false) } // *** ADDED ***
 
     val firstSelectedConvo = conversations.find { it.id == selectedConversationIds.firstOrNull() }
 
@@ -97,7 +99,8 @@ fun MainScreen(
                     selectedCount = selectedConversationIds.size,
                     onClose = { selectedConversationIds.clear() },
                     onMute = { showMuteDialog = true },
-                    onClearChat = { showClearChatDialog = true }
+                    onClearChat = { showClearChatDialog = true },
+                    onDelete = { showDeleteChatDialog = true } // *** ADDED ***
                 )
             } else {
                 NormalTopBar(
@@ -217,6 +220,27 @@ fun MainScreen(
             }
         )
     }
+
+    // *** ADDED: Dialog for Deleting Chats ***
+    if (showDeleteChatDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteChatDialog = false },
+            title = { Text("Delete ${selectedConversationIds.size} chat${if (selectedConversationIds.size > 1) "s" else ""}?") },
+            text = { Text("Are you sure you want to delete this chat? This will remove it from your chat list.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        mainViewModel.deleteConversations(selectedConversationIds.toList())
+                        showDeleteChatDialog = false
+                        selectedConversationIds.clear()
+                    },
+                ) { Text("Delete", color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteChatDialog = false }) { Text("Cancel") }
+            }
+        )
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -259,7 +283,8 @@ private fun ContextualTopBar(
     selectedCount: Int,
     onClose: () -> Unit,
     onMute: () -> Unit,
-    onClearChat: () -> Unit
+    onClearChat: () -> Unit,
+    onDelete: () -> Unit // *** ADDED ***
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
 
@@ -271,6 +296,11 @@ private fun ContextualTopBar(
             }
         },
         actions = {
+            // *** ADDED: Delete Action ***
+            IconButton(onClick = onDelete) {
+                Icon(Icons.Default.Delete, contentDescription = "Delete Chat")
+            }
+
             IconButton(onClick = { menuExpanded = true }) {
                 Icon(Icons.Default.MoreVert, contentDescription = "More Options")
             }

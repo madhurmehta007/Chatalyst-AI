@@ -10,7 +10,7 @@
       "client_info": {
         "mobilesdk_app_id": "1:226759716419:android:587bbbf93ee82f89116ef6",
         "android_client_info": {
-          "package_name": "com.android.chatalystai"
+          "package_name": "com.android.bakchodai"
         }
       },
       "oauth_client": [
@@ -18,12 +18,49 @@
           "client_id": "226759716419-k6h1gqoj8oivjh9flbitrsvi5v64na2c.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
-            "package_name": "com.android.chatalystai",
+            "package_name": "com.android.bakchodai",
             "certificate_hash": "b9203810f82a47840a1a135f23ba4b56b40a4603"
           }
         },
         {
           "client_id": "226759716419-m552o97q75ij0gpu39rv919m6206b7hn.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.android.bakchodai",
+            "certificate_hash": "dd1268d2ce7720bebea3a415a9c385fd46bf7c9e"
+          }
+        },
+        {
+          "client_id": "226759716419-g6roibd3ted0ti9ikd0lvtl29crijnfi.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDrui-V2XgjP6gfqgHzKMeVD7j0rV25GnA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "226759716419-g6roibd3ted0ti9ikd0lvtl29crijnfi.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:226759716419:android:34554702e2b1bb50116ef6",
+        "android_client_info": {
+          "package_name": "com.android.chatalystai"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "226759716419-51dicpf4stt50grqnqqhq5kepugl63j0.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
             "package_name": "com.android.chatalystai",

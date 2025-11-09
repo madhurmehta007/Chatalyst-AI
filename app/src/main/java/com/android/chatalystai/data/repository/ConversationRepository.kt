@@ -17,13 +17,15 @@ interface ConversationRepository {
     suspend fun addMessage(conversationId: String, message: Message)
     suspend fun createGroup(name: String, participantIds: List<String>, topic: String, isGroup: Boolean): String
     suspend fun addUser(user: User)
+    suspend fun deleteUser(userId: String)
+    suspend fun deleteUsers(userIds: List<String>) // *** ADDED ***
     suspend fun updateUserName(uid: String, newName: String)
 
     suspend fun updateMessage(conversationId: String, messageId: String, newText: String)
-    suspend fun deleteMessages(conversationId: String, messageIds: List<String>) // *** MODIFIED ***
+    suspend fun deleteMessages(conversationId: String, messageIds: List<String>)
     suspend fun deleteGroup(conversationId: String)
 
-    suspend fun clearChat(conversationId: String) // *** ADDED ***
+    suspend fun clearChat(conversationId: String)
 
     suspend fun updateGroupDetails(conversationId: String, newName: String, newTopic: String)
 

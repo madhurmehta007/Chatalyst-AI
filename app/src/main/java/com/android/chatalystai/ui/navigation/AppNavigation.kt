@@ -35,7 +35,7 @@ import com.android.chatalystai.ui.auth.AuthState
 import com.android.chatalystai.ui.auth.AuthViewModel
 import com.android.chatalystai.ui.chat.ChatScreen
 import com.android.chatalystai.ui.chat.ChatViewModel
-import com.android.chatalystai.ui.common.FullScreenImageViewer // *** ADDED IMPORT ***
+import com.android.chatalystai.ui.common.FullScreenImageViewer
 import com.android.chatalystai.ui.creategroup.CreateGroupScreen
 import com.android.chatalystai.ui.creategroup.CreateGroupViewModel
 import com.android.chatalystai.ui.edit_group.EditGroupScreen
@@ -48,7 +48,7 @@ import com.android.chatalystai.ui.profile.AiProfileScreen
 import com.android.chatalystai.ui.profile.ProfileScreen
 import com.android.chatalystai.ui.splash.SplashScreen
 import kotlinx.coroutines.delay
-import java.net.URLEncoder // *** ADDED IMPORT ***
+import java.net.URLEncoder
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -120,7 +120,6 @@ fun AppNavigation() {
                                 onUpgradeClick = { navController.navigate("premium") },
                                 onUpdateAvatar = { uri -> authViewModel.updateUserAvatar(uri) },
                                 onUpdateAvatarUrl = { url -> authViewModel.updateUserAvatarFromUrl(url) },
-                                // *** MODIFICATION: Pass lambda for avatar click ***
                                 onViewAvatar = { url ->
                                     val encodedUrl = URLEncoder.encode(url, "UTF-8")
                                     navController.navigate("full_screen_image?url=$encodedUrl")
@@ -133,7 +132,6 @@ fun AppNavigation() {
                     composable("ai_profile/{userId}") {
                         AiProfileScreen(
                             onBack = { navController.popBackStack() },
-                            // *** MODIFICATION: Pass lambda for avatar click ***
                             onViewAvatar = { url ->
                                 val encodedUrl = URLEncoder.encode(url, "UTF-8")
                                 navController.navigate("full_screen_image?url=$encodedUrl")
@@ -141,7 +139,6 @@ fun AppNavigation() {
                         )
                     }
 
-                    // *** ADDED: New Route for Full Screen Image Viewer ***
                     composable(
                         "full_screen_image?url={url}",
                         arguments = listOf(navArgument("url") { type = NavType.StringType; nullable = true })
@@ -178,7 +175,11 @@ fun AppNavigation() {
                             onNavigateToPremium = {
                                 navController.navigate("premium")
                             },
-                            onBack = { navController.popBackStack() }
+                            onBack = { navController.popBackStack() },
+                            // *** MODIFICATION: Pass the new multi-delete handler ***
+                            onDeleteAiCharacters = { userIds ->
+                                newChatViewModel.deleteAiCharacters(userIds)
+                            }
                         )
 
                         LaunchedEffect(conversationId) {

@@ -289,6 +289,48 @@ class OfflineFirstConversationRepository @Inject constructor(
         }
     }
 
+    // *** ADDED: Implementation for single user delete ***
+    override suspend fun deleteUser(userId: String) {
+        withContext(Dispatchers.IO) {
+            try {
+                userDao.deleteUserById(userId)
+                Log.d("Repo", "User $userId deleted from Room")
+            } catch (e: Exception) {
+                Log.e("Repo", "Failed to delete user $userId from Room", e)
+            }
+            try {
+                database.child("users").child(userId).removeValue().await()
+                Log.d("Repo", "User $userId deleted from Firebase")
+            } catch (e: Exception) {
+                Log.e("Repo", "Failed to delete user $userId from Firebase", e)
+            }
+        }
+    }
+
+    // *** ADDED: Implementation for multiple user delete ***
+    override suspend fun deleteUsers(userIds: List<String>) {
+        withContext(Dispatchers.IO) {
+            try {
+                userDao.deleteUsersByIds(userIds)
+                Log.d("Repo", "Deleted ${userIds.size} users from Room")
+            } catch (e: Exception) {
+                Log.e("Repo", "Failed to delete users from Room", e)
+            }
+
+            val updates = mutableMapOf<String, Any?>()
+            userIds.forEach { userId ->
+                updates["/users/$userId"] = null
+            }
+
+            try {
+                database.updateChildren(updates).await()
+                Log.d("Repo", "Deleted ${userIds.size} users from Firebase")
+            } catch (e: Exception) {
+                Log.e("Repo", "Failed to delete users from Firebase", e)
+            }
+        }
+    }
+
     override suspend fun updateUserName(uid: String, newName: String) {
         try {
             database.child("users").child(uid).child("name").setValue(newName).await()
@@ -357,16 +399,23 @@ class OfflineFirstConversationRepository @Inject constructor(
             Log.e("Repo", "Cannot delete user-conversation link for group $conversationId: User not logged in.")
         }
 
-        try {
-            database.child("conversations")
-                .child(conversationId)
-                .removeValue()
-                .await()
-            Log.d("Repo", "Main conversation node deleted in Firebase: $conversationId")
+        val conversation = getConversation(conversationId)
+        if (conversation?.group == true) {
+            try {
+                database.child("conversations")
+                    .child(conversationId)
+                    .removeValue()
+                    .await()
+                Log.d("Repo", "Main conversation node deleted in Firebase: $conversationId")
+                firebaseMainNodeSuccess = true
+            } catch (e: Exception) {
+                Log.e("Repo", "Failed to delete main conversation node $conversationId in Firebase", e)
+            }
+        } else {
+            Log.d("Repo", "Skipping main node deletion for 1-on-1 chat: $conversationId")
             firebaseMainNodeSuccess = true
-        } catch (e: Exception) {
-            Log.e("Repo", "Failed to delete main conversation node $conversationId in Firebase", e)
         }
+
 
         try {
             scope.launch {
@@ -454,19 +503,42 @@ class OfflineFirstConversationRepository @Inject constructor(
 
     override suspend fun markMessagesAsRead(conversationId: String, messageIds: List<String>, userId: String) {
         if (messageIds.isEmpty()) return
-
-        val updates = mutableMapOf<String, Any?>()
         val readTimestamp = System.currentTimeMillis()
 
+        withContext(Dispatchers.IO) {
+            try {
+                val conversationEntity = conversationDao.getConversationByIdSuspend(conversationId)
+                if (conversationEntity != null) {
+                    val updatedMessages = conversationEntity.messages.toMutableMap()
+                    var changed = false
+                    messageIds.forEach { msgId ->
+                        val message = updatedMessages[msgId]
+                        if (message != null && !message.readBy.containsKey(userId)) {
+                            val updatedReadBy = message.readBy + (userId to readTimestamp)
+                            updatedMessages[msgId] = message.copy(readBy = updatedReadBy)
+                            changed = true
+                        }
+                    }
+                    if (changed) {
+                        conversationDao.insertAll(listOf(conversationEntity.copy(messages = updatedMessages)))
+                        Log.d("Repo", "Marked ${messageIds.size} messages as read in Room for $userId")
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("Repo", "Failed to mark messages as read in Room", e)
+            }
+        }
+
+        val updates = mutableMapOf<String, Any?>()
         messageIds.forEach { msgId ->
             updates["/conversations/$conversationId/messages/$msgId/readBy/$userId"] = readTimestamp
         }
 
         try {
             database.updateChildren(updates).await()
-            Log.d("Repo", "Marked ${messageIds.size} messages as read by $userId")
+            Log.d("Repo", "Marked ${messageIds.size} messages as read in Firebase for $userId")
         } catch (e: Exception) {
-            Log.e("Repo", "Failed to mark messages as read", e)
+            Log.e("Repo", "Failed to mark messages as read in Firebase", e)
         }
     }
 

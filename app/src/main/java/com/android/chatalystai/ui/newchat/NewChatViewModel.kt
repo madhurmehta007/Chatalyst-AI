@@ -90,4 +90,30 @@ class NewChatViewModel @Inject constructor(private val repository: ConversationR
             }
         }
     }
+
+    // *** MODIFIED: Renamed and updated to handle a list ***
+    fun deleteAiCharacters(userIds: List<String>) {
+        viewModelScope.launch {
+            val conversations = repository.getConversations()
+            val chatsToDelete = mutableListOf<String>()
+
+            for (userId in userIds) {
+                // Find any 1-on-1 chats with this AI
+                val aiChat = conversations.firstOrNull {
+                    !it.group && it.participants.containsKey(userId)
+                }
+                if (aiChat != null) {
+                    chatsToDelete.add(aiChat.id)
+                }
+            }
+
+            // Delete all found 1-on-1 chats
+            chatsToDelete.forEach { convoId ->
+                repository.deleteGroup(convoId)
+            }
+
+            // Delete all the AI users
+            repository.deleteUsers(userIds)
+        }
+    }
 }

@@ -91,6 +91,15 @@ class MainViewModel @Inject constructor(private val repository: ConversationRepo
         }
     }
 
+    // *** ADDED: Function to delete multiple conversations ***
+    fun deleteConversations(conversationIds: List<String>) {
+        viewModelScope.launch {
+            conversationIds.forEach { convoId ->
+                repository.deleteGroup(convoId) // Re-using deleteGroup as it handles convo deletion
+            }
+        }
+    }
+
     fun muteConversation(conversationId: String, durationMillis: Long) {
         viewModelScope.launch {
             val mutedUntil = if (durationMillis == -1L) {

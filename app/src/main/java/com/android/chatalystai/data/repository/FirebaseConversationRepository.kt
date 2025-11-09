@@ -199,6 +199,20 @@ class FirebaseConversationRepository : ConversationRepository {
         database.child("users").child(user.uid).setValue(user).await()
     }
 
+    override suspend fun deleteUser(userId: String) {
+        withContext(Dispatchers.IO) {
+            try {
+                database.child("users").child(userId).removeValue().await()
+                Log.d("Repo", "User $userId deleted from Firebase")
+            } catch (e: Exception) {
+                Log.e("Repo", "Failed to delete user $userId from Firebase", e)
+            }
+        }
+    }
+
+    override suspend fun deleteUsers(userIds: List<String>) {
+    }
+
     override suspend fun updateUserName(uid: String, newName: String) {
         database.child("users").child(uid).child("name").setValue(newName).await()
     }
@@ -297,16 +311,25 @@ class FirebaseConversationRepository : ConversationRepository {
     override suspend fun deleteGroup(conversationId: String) {
         val conversation = getConversation(conversationId) ?: return
         val participantIds = conversation.participants.keys
+        val currentUserId = Firebase.auth.currentUser?.uid
 
         val childUpdates = mutableMapOf<String, Any?>()
 
-        childUpdates["/conversations/$conversationId"] = null
-
-        participantIds.forEach { participantId ->
-            childUpdates["/user-conversations/$participantId/$conversationId"] = null
+        // *** MODIFICATION: Only remove current user's link for 1-on-1 chats ***
+        if (conversation.group) {
+            // For groups, delete the whole conversation and links for everyone
+            childUpdates["/conversations/$conversationId"] = null
+            participantIds.forEach { participantId ->
+                childUpdates["/user-conversations/$participantId/$conversationId"] = null
+            }
+        } else if (currentUserId != null) {
+            // For 1-on-1, just remove the current user's link
+            childUpdates["/user-conversations/$currentUserId/$conversationId"] = null
         }
 
-        database.updateChildren(childUpdates).await()
+        if (childUpdates.isNotEmpty()) {
+            database.updateChildren(childUpdates).await()
+        }
     }
 
     override suspend fun updateGroupDetails(conversationId: String, newName: String, newTopic: String) {
