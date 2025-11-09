@@ -134,7 +134,10 @@ fun NewChatScreen(
                     .padding(paddingValues),
                 contentAlignment = Alignment.Center
             ) {
-                Text("No contacts found.\nTap '+' to create a new AI!", modifier = Modifier.padding(16.dp))
+                Text(
+                    "No contacts found.\nTap '+' to create a new AI!",
+                    modifier = Modifier.padding(16.dp)
+                )
             }
         } else {
             LazyColumn(
@@ -174,7 +177,7 @@ fun NewChatScreen(
                         val isSelected = user.uid in selectedAiIds
                         UserListItem(
                             user = user,
-                            isSelected = isSelected,
+                            isSelected = if (isUserPremium) isSelected else false,
                             onUserClick = {
                                 if (isInSelectionMode) {
                                     if (isSelected) selectedAiIds.remove(user.uid)
@@ -184,12 +187,20 @@ fun NewChatScreen(
                                 }
                             },
                             onUserLongPress = {
-                                if (!isInSelectionMode) {
-                                    selectedAiIds.add(user.uid)
+                                if (isUserPremium) {
+                                    if (!isInSelectionMode) {
+                                        selectedAiIds.add(user.uid)
+                                    }
                                 }
                             }
                         )
-                        Divider(modifier = Modifier.padding(top = 8.dp, bottom = 8.dp, start = 88.dp))
+                        Divider(
+                            modifier = Modifier.padding(
+                                top = 8.dp,
+                                bottom = 8.dp,
+                                start = 88.dp
+                            )
+                        )
                     }
                 }
 
@@ -208,7 +219,13 @@ fun NewChatScreen(
                             onUserClick = { onUserClick(user) },
                             onUserLongPress = {} // Humans can't be deleted
                         )
-                        Divider(modifier = Modifier.padding(top = 8.dp, bottom = 8.dp, start = 88.dp))
+                        Divider(
+                            modifier = Modifier.padding(
+                                top = 8.dp,
+                                bottom = 8.dp,
+                                start = 88.dp
+                            )
+                        )
                     }
                 }
             }
