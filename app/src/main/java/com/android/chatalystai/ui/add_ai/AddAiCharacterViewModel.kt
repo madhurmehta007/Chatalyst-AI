@@ -67,7 +67,6 @@ class AddAiCharacterViewModel @Inject constructor(
         style: String,
         imageSearchQuery: String
     ) {
-
         val currentUserId = auth.currentUser?.uid
         if (currentUserId == null) {
             _errorMessage.value = "You must be logged in to create an AI."
@@ -79,16 +78,20 @@ class AddAiCharacterViewModel @Inject constructor(
             return
         }
 
+
         viewModelScope.launch {
             _isLoading.value = true
             _errorMessage.value = null
             _addSuccess.value = false
             try {
-                val aiUid = "ai_${
-                    name.trim().lowercase().replace("\\s+".toRegex(), "_")
-                }_${UUID.randomUUID().toString().substring(0, 4)}"
+                val sanitizedName = name.trim().lowercase()
+                    .replace("[^a-z0-9\\s]".toRegex(), "")
+                    .replace("\\s+".toRegex(), "_")
+                    .replace("__+".toRegex(), "_")
+                    .trim('_')
 
-                // Use only Google Image Search (removed Giphy as it's not suitable for profile images)
+                val aiUid = "ai_${sanitizedName}_${UUID.randomUUID().toString().substring(0, 4)}"
+
                 var imageUrl: String? = null
                 if (imageSearchQuery.isNotBlank()) {
                     Log.d("AddAiViewModel", "Searching for image with query: '$imageSearchQuery'")
@@ -96,7 +99,6 @@ class AddAiCharacterViewModel @Inject constructor(
 
                     if (imageUrl.isNullOrBlank()) {
                         Log.w("AddAiViewModel", "Google Image Search failed for '$imageSearchQuery'")
-                        // Try with a simplified query as fallback
                         val simplifiedQuery = "$name portrait"
                         Log.d("AddAiViewModel", "Trying simplified query: '$simplifiedQuery'")
                         imageUrl = googleImageService.searchImage(simplifiedQuery)
@@ -108,7 +110,7 @@ class AddAiCharacterViewModel @Inject constructor(
                     imageUrl
                 } else {
                     Log.e("AddAiViewModel", "Image search failed for '$imageSearchQuery'. Character will be created without an avatar.")
-                    null // Character will be created without an avatar
+                    null
                 }
 
                 val newAiUser = User(

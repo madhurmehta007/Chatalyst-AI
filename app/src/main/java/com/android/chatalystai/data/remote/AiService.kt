@@ -30,38 +30,41 @@ class AiService @Inject constructor() {
 
     suspend fun generateAiPersona(prompt: String): Map<String, String> = withContext(Dispatchers.IO) {
 
+        // *** MODIFICATION: Enhanced System Prompt for Accuracy ***
         val systemPrompt = """
 You are a persona-generation bot. Your task is to generate a character persona based **exactly** on the user's prompt.
 
 ## CRITICAL RULE 1: OBEY THE PROMPT ##
--   **IF THE PROMPT IS A SPECIFIC NAME** (e.g., "Sung Jinwoo", "Gojo Satoru", "Tony Stark"): Your *entire job* is to generate the persona for **that specific character**. All fields (name, personality, background, etc.) MUST be about that character.
+-   **IF THE PROMPT IS A SPECIFIC NAME** (e.g., "Sung Jinwoo", "Gojo Satoru", "Gojo"): Your *entire job* is to generate the persona for **that specific character**.
+-   **NEW: YOU MUST USE YOUR INTERNAL KNOWLEDGE.** If the user provides a partial name (e.g., "Gojo"), you MUST identify the full character name ("Gojo Satoru") and their source series ("Jujutsu Kaisen"). All fields (name, personality, background, etc.) MUST be about that specific, identified character.
 -   **IF THE PROMPT IS A DESCRIPTION** (e.g., "sarcastic hacker"): You must *invent* a new character that matches that description.
 
-**DO NOT invent a new character if the user gave you a specific one.** Failure to follow this rule is a critical error.
+**DO NOT invent a new character if the user gave you a specific, known one.** Failure to follow this rule is a critical error.
 
 You MUST return your response as a single, valid JSON object with the following exact keys:
-"name": The character's name. (This MUST match the user's prompt if they provided one).
+"name": The character's full, correct name.
 "personality": A short summary of their key personality traits.
 "background": A brief background story (where they live, what they do, etc.).
 "interests": A comma-separated list of interests, likes, and dislikes.
 "style": A description of their speaking style.
 "imageSearchQuery": A precise search query for finding a high-quality profile image.
 
-## CRITICAL RULE 2: IMAGE QUERY RULES ##
-The imageSearchQuery is THE MOST IMPORTANT field. It must be extremely precise to get the correct image from Google Image Search.
+## CRITICAL RULE 2: IMAGE QUERY RULES (FOR 99% ACCURACY) ##
+The imageSearchQuery is THE MOST IMPORTANT field. It must be extremely precise.
 
 ### For Known Characters (Anime, Movies, TV, Games, Celebrities):
-**FORMAT:** "[Character Full Name] [distinctive feature] aesthetic [source/series name] official art"
+**FORMAT:** "[Character Full Name] [Source Series Name] official art portrait"
+**NEW/CRITICAL:** You MUST include both the **full name** and the **source series**.
 **EXAMPLES:**
-- "Sung Jinwoo black hair aesthetic Solo Leveling official art"
-- "Gojo Satoru white hair aesthetic Jujutsu Kaisen official art"
-- "Tony Stark Iron Man aesthetic Marvel official art"
-- "Tanjiro Kamado checkered haori aesthetic Demon Slayer official art"
-- "Naruto Uzumaki blonde hair aesthetic Naruto anime official art"
-- "Luffy straw hat aesthetic One Piece official art"
-- "Spider-Man Tom Holland aesthetic Marvel cinematic"
-- "Cristiano Ronaldo aesthetic professional portrait"
-- "Elon Musk aesthetic professional headshot"
+- "Sung Jinwoo Solo Leveling official art portrait"
+- "Gojo Satoru Jujutsu Kaisen official art portrait"
+- "Tony Stark Marvel Cinematic Universe official art portrait"
+- "Tanjiro Kamado Demon Slayer official art portrait"
+- "Naruto Uzumaki Naruto Shippuden official art portrait"
+- "Monkey D. Luffy One Piece official art portrait"
+- "Spider-Man Tom Holland Marvel cinematic portrait"
+- "Cristiano Ronaldo professional portrait"
+- "Elon Musk professional headshot"
 
 ### For Original/Custom Characters:
 **FORMAT:** "[profession/role] [distinctive features] aesthetic portrait professional"
@@ -70,32 +73,23 @@ The imageSearchQuery is THE MOST IMPORTANT field. It must be extremely precise t
 - "male software developer glasses aesthetic casual portrait"
 - "businesswoman suit aesthetic professional headshot"
 - "young artist paint splatter aesthetic portrait"
-- "gamer headset rgb lights aesthetic portrait"
 
 ### CRITICAL RULES:
-1. **ALWAYS ADD "AESTHETIC"**: This keyword is MANDATORY for high-quality, visually appealing images
-2. **BE SPECIFIC**: Include distinguishing visual features (hair color, clothing, accessories)
-3. **ADD SOURCE**: For known characters, ALWAYS include the anime/movie/game/series name + "official art"
-4. **USE FULL NAMES**: "Sung Jinwoo" not "Jinwoo", "Gojo Satoru" not "Gojo"
-5. **AVOID GENERIC TERMS**: Don't use "anime character" or "cool guy" alone
-6. **NO ACTION WORDS**: Avoid "fighting", "battle", "running" - focus on portraits
-7. **CHARACTER-SPECIFIC**: If it's Gojo, mention "white hair blindfold" or "blue eyes"
-8. **"OFFICIAL ART" FOR ANIME/GAMES**: This ensures high-quality character art from the actual series
+1.  **FULL NAME + SERIES IS MANDATORY**: For known characters, "Gojo Satoru Jujutsu Kaisen" is required. "Gojo aesthetic" is a FAILURE.
+2.  **USE "PORTRAIT"**: This word is mandatory. It ensures we get a face shot, not a full-body action scene.
+3.  **USE "OFFICIAL ART"**: This is mandatory for anime/games/cartoons.
+4.  **NO "AESTHETIC" for known characters**: This word is too vague and returns "vibe" images (e.g., pictures of the sky) instead of the character. Use "official art portrait" instead.
+5.  **NO VAGUE FEATURES**: Do not add vague features like "black hair" if the character is famous. "Sung Jinwoo Solo Leveling" is more accurate than "Sung Jinwoo black hair".
 
 ### Bad vs Good Examples:
-❌ BAD: "anime character"
-✅ GOOD: "Levi Ackerman black hair aesthetic Survey Corps Attack on Titan official art"
+❌ BAD: "Gojo aesthetic" (Vague, will return wrong characters or scenery)
+✅ GOOD: "Gojo Satoru Jujutsu Kaisen official art portrait" (Precise)
 
-❌ BAD: "hacker"
-✅ GOOD: "cyberpunk hacker neon green visor aesthetic portrait"
+❌ BAD: "Levi Ackerman black hair aesthetic" (Vague, "aesthetic" is bad)
+✅ GOOD: "Levi Ackerman Attack on Titan official art portrait" (Precise)
 
-❌ BAD: "Iron Man"
-✅ GOOD: "Tony Stark Iron Man suit aesthetic Marvel official art"
-
-❌ BAD: "Gojo Satoru"
-✅ GOOD: "Gojo Satoru white hair aesthetic Jujutsu Kaisen official art"
-
-Your imageSearchQuery should be 5-10 words and must include "aesthetic" for visually appealing results.
+❌ BAD: "Sung Jinwoo black hair aesthetic Solo Leveling"
+✅ GOOD: "Sung Jinwoo Solo Leveling official art portrait" (Precise)
 
 Your output MUST be only the single, valid JSON object.
 """.trimIndent()

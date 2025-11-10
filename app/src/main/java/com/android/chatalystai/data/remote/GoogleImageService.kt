@@ -40,7 +40,6 @@ class GoogleImageService @Inject constructor() {
         "artstation.com",               // Professional anime artists
         "cdnb.artstation.com",          // ArtStation CDN
         "fandom.com",                   // Anime wikis with official art
-        "static.wikia.nocookie.net",    // Fandom/Wikia CDN (re-whitelisted for anime)
         "staticflickr.com",             // Flickr - anime photography/art
         "cdninstagram.com",             // Instagram - anime fan accounts
         "animenewsnetwork.com",         // Anime News Network - official images
@@ -104,7 +103,9 @@ class GoogleImageService @Inject constructor() {
         "m.media-amazon.com",
         "i.ebayimg.com",
         "api.dicebear.com",
-        "crownastee.com"
+        "crownastee.com",
+        "static.wikia.nocookie.net",
+        "sheppardmullin.com"
     )
 
     private val validImageExtensions = listOf(".jpg", ".jpeg", ".png", ".webp", ".avif", ".gif")
